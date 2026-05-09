@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0A0E1B" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="RallyScore Broadcast" />
+<title>RallyScore Pro — Broadcaster (Scorer)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0E1B;
+    --bg-elev: #131829;
+    --bg-elev-2: #1B2138;
+    --border: #232A45;
+    --text: #F4F6FB;
+    --text-muted: #8A93AD;
+    --text-dim: #5A6280;
+    --accent: #FF4D2E;
+    --accent-2: #FFB800;
+    --success: #00D67D;
+    --info: #4D8DFF;
+    --danger: #FF4040;
+    --home: #FF4D2E;
+    --away: #4D8DFF;
+    --gradient: linear-gradient(135deg, #FF4D2E 0%, #FF8A00 100%);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #05060d;
+    color: var(--text);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+  body { display: flex; justify-content: center; min-height: 100vh; }
+  #app {
+    width: 100%; max-width: 430px;
+    min-height: 100vh;
+    background: var(--bg);
+    position: relative;
+    box-shadow: 0 0 60px rgba(255, 77, 46, 0.08);
+    display: flex; flex-direction: column;
+  }
+
+  /* Screens */
+  .screen { display: none; flex-direction: column; flex: 1; min-height: 0; }
+  .screen.active { display: flex; }
+
+  /* === SETUP SCREEN === */
+  .setup-top {
+    padding: calc(var(--safe-top) + 14px) 16px 6px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .brand-mark {
+    width: 32px; height: 32px;
+    border-radius: 9px;
+    background: var(--gradient);
+    display: grid; place-items: center;
+    font-family: 'Anton', sans-serif;
+    font-size: 18px; color: #fff;
+    box-shadow: 0 4px 12px rgba(255, 77, 46, 0.4);
+  }
+  .brand-text { font-weight: 800; font-size: 16px; }
+  .role-badge {
+    margin-left: auto;
+    font-size: 10px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    background: rgba(255, 77, 46, 0.16);
+    color: var(--accent);
+    padding: 4px 9px; border-radius: 999px;
+    border: 1px solid rgba(255, 77, 46, 0.3);
+  }
+  .setup-body {
+    padding: 16px 16px 14px;
+    flex: 1; overflow-y: auto;
+  }
+  .setup-title {
+    font-size: 24px; font-weight: 800;
+    margin: 8px 0 6px;
+  }
+  .setup-sub {
+    font-size: 13px; color: var(--text-muted);
+    line-height: 1.45;
+    margin-bottom: 22px;
+  }
+  .field { margin-bottom: 16px; }
+  .field-label {
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--text-muted);
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .input {
+    width: 100%;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px; font-weight: 600;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .input:focus { border-color: var(--accent); }
+  .input-row {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .chip-row {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .chip {
+    padding: 8px 12px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text-muted);
+    font-size: 12px; font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .chip.active {
+    background: rgba(255, 77, 46, 0.18);
+    border-color: rgba(255, 77, 46, 0.5);
+    color: var(--accent);
+  }
+
+  /* Camera preview in setup */
+  .preview-wrap {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(180deg, #1B2138, #0A0E1B);
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin-top: 4px;
+  }
+  .preview-wrap video,
+  .preview-wrap .ph {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .preview-wrap .ph {
+    display: grid; place-items: center;
+    color: var(--text-dim);
+    font-size: 12px;
+    text-align: center;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255, 184, 0, 0.18), transparent 50%),
+      radial-gradient(circle at 70% 70%, rgba(77, 141, 255, 0.18), transparent 50%),
+      linear-gradient(180deg, #1B2138, #0A0E1B);
+  }
+  .preview-overlay {
+    position: absolute;
+    bottom: 8px; left: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 10px;
+    padding: 3px 7px;
+    border-radius: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+  .preview-actions {
+    position: absolute;
+    top: 8px; right: 8px;
+    display: flex; gap: 6px;
+  }
+  .pa-btn {
+    width: 32px; height: 32px;
+    border-radius: 9px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    display: grid; place-items: center;
+    cursor: pointer;
+  }
+
+  /* Pre-flight checklist */
+  .checklist {
+    margin-top: 10px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .checklist h4 {
+    margin: 0 0 8px;
+    font-size: 12px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+  .check-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .check-box {
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    color: transparent;
+    transition: all 0.15s ease;
+  }
+  .check-item.done .check-box {
+    background: var(--success);
+    border-color: var(--success);
+    color: #fff;
+  }
+  .check-item.done .check-text { color: var(--text-dim); text-decoration: line-through; }
+  .check-text { color: var(--text); }
+
+  /* Setup footer with go-live button */
+  .setup-footer {
+    padding: 14px 16px calc(14px + var(--safe-bottom));
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+  }
+  .go-live-btn {
+    width: 100%;
+    padding: 16px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--gradient);
+    color: #fff;
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 15px;
+    cursor: pointer;
+    box-shadow: 0 14px 30px rgba(255, 77, 46, 0.4);
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: transform 0.12s ease, opacity 0.12s ease;
+  }
+  .go-live-btn:active { transform: scale(0.97); }
+  .go-live-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .go-live-btn .pulse-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #fff;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.4); }
+  }
+  .privacy-note {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 8px;
+  }
+
+  /* === LIVE SCREEN === */
+  .live-top {
+    display: flex; align-items: center; gap: 8px;
+    padding: calc(var(--safe-top) + 10px) 12px 8px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .live-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--accent);
+    color: #fff;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 10px; font-weight: 800;
+    letter-spacing: 0.06em;
+  }
+  .live-pill .live-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #fff;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .timer {
+    font-family: 'Anton', sans-serif;
+    font-size: 16px;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .viewers-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600;
+    color: var(--text-muted);
+  }
+  .end-btn {
+    margin-left: auto;
+    padding: 6px 12px;
+    background: rgba(255, 64, 64, 0.16);
+    border: 1px solid rgba(255, 64, 64, 0.4);
+    color: var(--danger);
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 12px; font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* Compact camera preview at top of live screen */
+  .live-cam {
+    position: relative;
+    height: 130px;
+    background: #000;
+    overflow: hidden;
+  }
+  .live-cam video,
+  .live-cam .ph {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .live-cam .ph {
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255, 184, 0, 0.18), transparent 50%),
+      linear-gradient(180deg, #1B2138, #0A0E1B);
+    display: grid; place-items: center;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .live-cam-overlay {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 8px 10px;
+  }
+  .rec-pill {
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 9px; font-weight: 800;
+    padding: 3px 7px;
+    border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 4px;
+    letter-spacing: 0.05em;
+  }
+  .rec-pill .rec-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .quality-pill {
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 10px; font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 6px;
+  }
+
+  /* Set indicator strip */
+  .set-strip {
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px;
+  }
+  .set-info {
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-muted);
+    font-weight: 700;
+  }
+  .set-info b { color: var(--text); margin: 0 4px; }
+  .set-strip .small-btn {
+    padding: 5px 9px;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 8px;
+    font-size: 11px; font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  /* Team panels */
+  .teams {
+    flex: 1;
+    display: grid; grid-template-rows: 1fr 1fr;
+    min-height: 0;
+  }
+  .team-panel {
+    padding: 10px 12px 12px;
+    display: flex; flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .team-panel.home {
+    background: linear-gradient(180deg, rgba(255, 77, 46, 0.12), transparent 80%);
+  }
+  .team-panel.away {
+    background: linear-gradient(0deg, rgba(77, 141, 255, 0.12), transparent 80%);
+  }
+
+  .panel-head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 4px;
+  }
+  .panel-name {
+    font-size: 14px; font-weight: 800;
+  }
+  .team-panel.home .panel-name { color: var(--home); }
+  .team-panel.away .panel-name { color: var(--away); }
+  .panel-sets {
+    display: inline-flex; gap: 4px;
+    margin-left: 6px;
+  }
+  .set-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+  }
+  .team-panel.home .set-dot.won { background: var(--home); }
+  .team-panel.away .set-dot.won { background: var(--away); }
+
+  .panel-body {
+    display: flex; align-items: center; gap: 12px;
+    flex: 1;
+    min-height: 0;
+  }
+  .panel-score {
+    flex: 0 0 auto;
+    font-family: 'Anton', sans-serif;
+    font-size: 90px;
+    line-height: 0.85;
+    text-align: center;
+    min-width: 110px;
+    transition: transform 0.3s ease;
+    color: transparent;
+    background: linear-gradient(180deg, var(--score-from) 0%, #fff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+  .team-panel.home .panel-score { --score-from: var(--home); }
+  .team-panel.away .panel-score { --score-from: var(--away); }
+  .panel-score.bump {
+    animation: scoreBump 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes scoreBump {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.18); filter: drop-shadow(0 0 22px rgba(255, 184, 0, 0.6)); }
+    100% { transform: scale(1); }
+  }
+
+  .panel-controls {
+    flex: 1;
+    display: flex; flex-direction: column; gap: 6px;
+    min-width: 0;
+  }
+  .point-btn {
+    flex: 1;
+    border: 0;
+    border-radius: 14px;
+    color: #fff;
+    font-family: 'Anton', sans-serif;
+    font-size: 30px;
+    cursor: pointer;
+    transition: transform 0.1s ease, filter 0.15s ease;
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+    min-height: 56px;
+  }
+  .team-panel.home .point-btn {
+    background: linear-gradient(135deg, var(--home), color-mix(in srgb, var(--home) 60%, #000));
+  }
+  .team-panel.away .point-btn {
+    background: linear-gradient(135deg, var(--away), color-mix(in srgb, var(--away) 60%, #000));
+  }
+  .point-btn:active { transform: scale(0.96); filter: brightness(1.15); }
+  .point-btn.dis { opacity: 0.4; pointer-events: none; }
+
+  .secondary-row {
+    display: flex; gap: 6px;
+  }
+  .secondary-btn {
+    flex: 1;
+    padding: 8px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 11px; font-weight: 600;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  .secondary-btn:active { transform: scale(0.95); }
+
+  /* Player attribution row (home only) */
+  .players-row {
+    display: flex; gap: 4px;
+    margin-top: 4px;
+    padding: 6px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .players-row::-webkit-scrollbar { display: none; }
+  .player-chip {
+    flex-shrink: 0;
+    min-width: 36px;
+    padding: 6px 8px;
+    background: var(--bg-elev);
+    border: 1.5px solid var(--border);
+    color: var(--text);
+    border-radius: 9px;
+    font-family: 'Anton', sans-serif;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+  }
+  .player-chip.selected {
+    background: var(--home);
+    border-color: var(--home);
+    color: #fff;
+  }
+  .player-chip-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px; font-weight: 600;
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+  .player-chip.selected .player-chip-label { color: rgba(255,255,255,0.85); }
+
+  /* Bottom action bar */
+  .live-bottom {
+    padding: 10px 12px calc(10px + var(--safe-bottom));
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    display: flex; gap: 8px;
+  }
+  .action-pill {
+    flex: 1;
+    padding: 9px;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 11px; font-weight: 600;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    transition: transform 0.1s ease;
+  }
+  .action-pill:active { transform: scale(0.96); }
+  .action-pill:disabled { opacity: 0.4; pointer-events: none; }
+
+  /* Toast and overlays */
+  .toast {
+    position: fixed; bottom: 90px; left: 50%;
+    transform: translate(-50%, 30px);
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-size: 12px; font-weight: 600;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 300;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  /* Countdown overlay */
+  .countdown {
+    position: fixed; inset: 0;
+    background: rgba(5, 6, 13, 0.95);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 500;
+  }
+  .countdown.active { display: flex; }
+  .countdown-num {
+    font-family: 'Anton', sans-serif;
+    font-size: 160px;
+    line-height: 1;
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: countdownPop 1s ease forwards;
+  }
+  @keyframes countdownPop {
+    0% { transform: scale(0.4); opacity: 0; }
+    20% { transform: scale(1); opacity: 1; }
+    80% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.4); opacity: 0; }
+  }
+
+  /* Match-end overlay */
+  .match-end {
+    position: fixed; inset: 0;
+    background: rgba(5, 6, 13, 0.92);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 400;
+    padding: 20px;
+  }
+  .match-end.active { display: flex; }
+  .match-end-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 28px 24px;
+    max-width: 320px;
+    text-align: center;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  }
+  .me-cup {
+    font-size: 56px;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 0 20px rgba(255, 184, 0, 0.55));
+  }
+  .me-label {
+    font-size: 11px; letter-spacing: 0.18em;
+    color: var(--accent-2); font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .me-winner {
+    font-family: 'Anton', sans-serif;
+    font-size: 32px; line-height: 1;
+    margin-bottom: 6px;
+  }
+  .me-score {
+    font-size: 14px; color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 18px;
+  }
+  .me-stats {
+    background: var(--bg-elev-2);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 18px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: left;
+  }
+  .me-stats .stat-row {
+    display: flex; justify-content: space-between;
+    padding: 3px 0;
+  }
+  .me-actions {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .me-btn {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-family: inherit; font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    background: var(--bg-elev-2);
+    color: var(--text);
+  }
+  .me-btn.primary {
+    background: var(--gradient);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(255, 77, 46, 0.4);
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============= SCREEN 1: SETUP ============= -->
+  <div class="screen active" id="screen-setup">
+    <div class="setup-top">
+      <div class="brand-mark">R</div>
+      <div class="brand-text">RallyScore Pro</div>
+      <span class="role-badge">★ Scorer</span>
+    </div>
+
+    <div class="setup-body">
+      <h1 class="setup-title">New broadcast</h1>
+      <p class="setup-sub">Set up the match. Verified families of the club will be notified when you go live.</p>
+
+      <div class="field">
+        <span class="field-label">Sport</span>
+        <div class="chip-row" id="sport-chips">
+          <button class="chip active" data-sport="volleyball">🏐 Volleyball</button>
+          <button class="chip" data-sport="basketball">🏀 Basketball</button>
+          <button class="chip" data-sport="soccer">⚽ Soccer</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Match format</span>
+        <div class="chip-row" id="format-chips">
+          <button class="chip active" data-fmt="3">Best of 3</button>
+          <button class="chip" data-fmt="5">Best of 5</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Teams</span>
+        <div class="input-row">
+          <input class="input" id="home-team-input" placeholder="Home" value="Madison Eagles" maxlength="24" />
+          <input class="input" id="away-team-input" placeholder="Away" value="Brooklyn Sharks" maxlength="24" />
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Camera preview</span>
+        <div class="preview-wrap">
+          <video id="setup-video" playsinline muted autoplay style="display:none;"></video>
+          <div class="ph" id="setup-ph">
+            Camera off · tap below to enable
+          </div>
+          <div class="preview-overlay">Cam 1 · 720p</div>
+          <div class="preview-actions">
+            <button class="pa-btn" id="btn-cam-toggle" title="Enable camera">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </button>
+            <button class="pa-btn" id="btn-cam-flip" title="Flip camera">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="checklist">
+        <h4>Pre-flight</h4>
+        <div class="check-item" data-check="angle">
+          <div class="check-box">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="check-text">Camera framed to whole court</div>
+        </div>
+        <div class="check-item" data-check="light">
+          <div class="check-box">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="check-text">Lighting is sufficient</div>
+        </div>
+        <div class="check-item" data-check="battery">
+          <div class="check-box">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="check-text">Battery > 30% or charger plugged in</div>
+        </div>
+        <div class="check-item" data-check="net">
+          <div class="check-box">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="check-text">Wi-Fi or 4G+ connection stable</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="setup-footer">
+      <button class="go-live-btn" id="btn-go-live" disabled>
+        <span class="pulse-dot"></span>
+        Go live
+      </button>
+      <div class="privacy-note">Stream visible only to families approved by the club</div>
+    </div>
+  </div>
+
+  <!-- ============= SCREEN 2: LIVE ============= -->
+  <div class="screen" id="screen-live">
+    <div class="live-top">
+      <span class="live-pill"><span class="live-dot"></span> LIVE</span>
+      <span class="timer" id="match-timer">00:00</span>
+      <span class="viewers-pill">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span id="viewer-count">0</span>
+      </span>
+      <button class="end-btn" id="btn-end">End</button>
+    </div>
+
+    <div class="live-cam">
+      <video id="live-video" playsinline muted autoplay></video>
+      <div class="ph" id="live-ph" style="display:none;">Camera unavailable · stream paused</div>
+      <div class="live-cam-overlay">
+        <span class="rec-pill"><span class="rec-dot"></span> REC · CAM 1</span>
+        <span class="quality-pill" id="live-quality">720p · 1.4 Mbps</span>
+      </div>
+    </div>
+
+    <div class="set-strip">
+      <span class="set-info">SET <b id="set-num">1</b> · <span id="set-target">TO 25</span> · 2-pt lead</span>
+      <button class="small-btn" id="btn-end-set">End set</button>
+    </div>
+
+    <div class="teams">
+      <div class="team-panel home">
+        <div class="panel-head">
+          <span class="panel-name" id="home-name">Madison Eagles</span>
+          <div class="panel-sets" id="home-sets">
+            <div class="set-dot"></div>
+            <div class="set-dot"></div>
+            <div class="set-dot"></div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="panel-score" id="home-score">0</div>
+          <div class="panel-controls">
+            <button class="point-btn" id="home-plus">+1</button>
+            <div class="secondary-row">
+              <button class="secondary-btn" id="home-minus">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                −1
+              </button>
+              <button class="secondary-btn" id="home-attribute">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/></svg>
+                <span id="home-attr-label">Attribute</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="players-row" id="players-row">
+          <button class="player-chip" data-player="Sophia M.|7">7<div class="player-chip-label">Sophia</div></button>
+          <button class="player-chip" data-player="Lucy R.|3">3<div class="player-chip-label">Lucy</div></button>
+          <button class="player-chip" data-player="Carla V.|9">9<div class="player-chip-label">Carla</div></button>
+          <button class="player-chip" data-player="Mara P.|12">12<div class="player-chip-label">Mara</div></button>
+          <button class="player-chip" data-player="Ivy C.|5">5<div class="player-chip-label">Ivy</div></button>
+          <button class="player-chip" data-player="Andrea G.|11">11<div class="player-chip-label">Andrea</div></button>
+          <button class="player-chip" data-player="Paula N.|14">14<div class="player-chip-label">Paula</div></button>
+          <button class="player-chip" data-player="Eva T.|8">8<div class="player-chip-label">Eva</div></button>
+        </div>
+      </div>
+
+      <div class="team-panel away">
+        <div class="panel-head">
+          <span class="panel-name" id="away-name">Brooklyn Sharks</span>
+          <div class="panel-sets" id="away-sets">
+            <div class="set-dot"></div>
+            <div class="set-dot"></div>
+            <div class="set-dot"></div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="panel-score" id="away-score">0</div>
+          <div class="panel-controls">
+            <button class="point-btn" id="away-plus">+1</button>
+            <div class="secondary-row">
+              <button class="secondary-btn" id="away-minus">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                −1
+              </button>
+              <button class="secondary-btn">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Mark clip
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="live-bottom">
+      <button class="action-pill" id="btn-undo" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
+        Undo
+      </button>
+      <button class="action-pill" id="btn-swap">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        Swap
+      </button>
+      <button class="action-pill" id="btn-timeout">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Timeout
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="countdown" id="countdown"><div class="countdown-num" id="countdown-num">3</div></div>
+
+<div class="match-end" id="match-end">
+  <div class="match-end-card">
+    <div class="me-cup">🏆</div>
+    <div class="me-label">FINAL</div>
+    <div class="me-winner" id="me-winner">Madison Eagles</div>
+    <div class="me-score" id="me-score">2 — 0</div>
+    <div class="me-stats" id="me-stats"></div>
+    <div class="me-actions">
+      <button class="me-btn primary" id="btn-end-broadcast">End broadcast & save</button>
+      <button class="me-btn" id="btn-new-match">Start new match</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  // === State ===
+  let cameraStream = null;
+  let cameraFacing = 'environment';
+  let cameraEnabled = false;
+  let preflightChecks = { angle: false, light: false, battery: false, net: false };
+  let matchFormat = 3; // best of 3
+  let activeSport = 'volleyball';
+  let homeName = 'Madison Eagles';
+  let awayName = 'Brooklyn Sharks';
+
+  let matchState = null;
+  let history = [];
+  let timerInterval = null;
+  let viewerInterval = null;
+  let qualityInterval = null;
+  let elapsedSeconds = 0;
+  let viewers = 0;
+  let selectedPlayer = null;
+
+  function initMatchState() {
+    return {
+      home: 0, away: 0,
+      setsHistory: [],
+      lastScorer: null,
+      matchOver: false
+    };
+  }
+
+  // === Toast ===
+  function showToast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  // === Setup screen logic ===
+  function updateGoLiveButton() {
+    const allChecks = Object.values(preflightChecks).every(Boolean);
+    $('btn-go-live').disabled = !(cameraEnabled && allChecks);
+  }
+
+  document.querySelectorAll('#sport-chips .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#sport-chips .chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeSport = chip.dataset.sport;
+      if (activeSport !== 'volleyball') {
+        showToast(activeSport.charAt(0).toUpperCase() + activeSport.slice(1) + ' rules — coming soon, defaulting to volleyball logic');
+      }
+    });
+  });
+
+  document.querySelectorAll('#format-chips .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#format-chips .chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      matchFormat = parseInt(chip.dataset.fmt, 10);
+    });
+  });
+
+  document.querySelectorAll('.check-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const k = item.dataset.check;
+      preflightChecks[k] = !preflightChecks[k];
+      item.classList.toggle('done', preflightChecks[k]);
+      updateGoLiveButton();
+    });
+  });
+
+  $('home-team-input').addEventListener('input', e => homeName = e.target.value || 'Home');
+  $('away-team-input').addEventListener('input', e => awayName = e.target.value || 'Away');
+
+  async function startCamera(facing) {
+    try {
+      if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+      const constraints = {
+        video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      };
+      let stream;
+      try { stream = await navigator.mediaDevices.getUserMedia(constraints); }
+      catch (err) { stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); }
+      cameraStream = stream;
+      $('setup-video').srcObject = stream;
+      $('setup-video').style.display = 'block';
+      $('setup-ph').style.display = 'none';
+      cameraEnabled = true;
+      updateGoLiveButton();
+    } catch (err) {
+      $('setup-ph').textContent = 'Camera blocked · demo will use placeholder';
+      cameraEnabled = true; // allow demo to proceed without camera
+      updateGoLiveButton();
+      showToast('Camera blocked — go live still works for demo');
+    }
+  }
+
+  $('btn-cam-toggle').addEventListener('click', () => startCamera(cameraFacing));
+  $('btn-cam-flip').addEventListener('click', () => {
+    cameraFacing = cameraFacing === 'environment' ? 'user' : 'environment';
+    if (cameraEnabled) startCamera(cameraFacing);
+  });
+
+  // === Go live ===
+  $('btn-go-live').addEventListener('click', () => {
+    runCountdown(() => {
+      transitionToLive();
+    });
+  });
+
+  function runCountdown(done) {
+    const overlay = $('countdown');
+    const numEl = $('countdown-num');
+    overlay.classList.add('active');
+    let n = 3;
+    numEl.textContent = n;
+    numEl.style.animation = 'none';
+    void numEl.offsetWidth;
+    numEl.style.animation = '';
+
+    const tick = () => {
+      n--;
+      if (n > 0) {
+        numEl.textContent = n;
+        numEl.style.animation = 'none';
+        void numEl.offsetWidth;
+        numEl.style.animation = '';
+        setTimeout(tick, 1000);
+      } else if (n === 0) {
+        numEl.textContent = 'LIVE';
+        numEl.style.animation = 'none';
+        void numEl.offsetWidth;
+        numEl.style.animation = '';
+        setTimeout(() => {
+          overlay.classList.remove('active');
+          done();
+        }, 900);
+      }
+    };
+    setTimeout(tick, 1000);
+  }
+
+  function transitionToLive() {
+    $('screen-setup').classList.remove('active');
+    $('screen-live').classList.add('active');
+
+    // Move video element source to live screen
+    const liveVideo = $('live-video');
+    const livePh = $('live-ph');
+    if (cameraStream) {
+      liveVideo.srcObject = cameraStream;
+      liveVideo.style.display = 'block';
+      livePh.style.display = 'none';
+    } else {
+      liveVideo.style.display = 'none';
+      livePh.style.display = 'grid';
+    }
+
+    // Initialize match
+    matchState = initMatchState();
+    history = [];
+    elapsedSeconds = 0;
+    viewers = 0;
+    $('home-name').textContent = homeName;
+    $('away-name').textContent = awayName;
+
+    // Set up correct number of set dots based on format
+    const homeSets = $('home-sets');
+    const awaySets = $('away-sets');
+    homeSets.innerHTML = ''; awaySets.innerHTML = '';
+    for (let i = 0; i < matchFormat; i++) {
+      homeSets.innerHTML += '<div class="set-dot"></div>';
+      awaySets.innerHTML += '<div class="set-dot"></div>';
+    }
+
+    renderMatch();
+    startTimers();
+  }
+
+  function startTimers() {
+    timerInterval = setInterval(() => {
+      elapsedSeconds++;
+      const m = Math.floor(elapsedSeconds / 60).toString().padStart(2, '0');
+      const s = (elapsedSeconds % 60).toString().padStart(2, '0');
+      $('match-timer').textContent = `${m}:${s}`;
+    }, 1000);
+
+    // Simulate viewers connecting over time
+    viewerInterval = setInterval(() => {
+      if (matchState && !matchState.matchOver) {
+        const target = Math.min(80 + Math.floor(elapsedSeconds / 30) * 6, 200);
+        if (viewers < target) viewers += Math.ceil(Math.random() * 3);
+        else viewers += Math.random() < 0.5 ? 1 : -1;
+        viewers = Math.max(0, viewers);
+        $('viewer-count').textContent = viewers;
+      }
+    }, 1500);
+
+    // Simulate quality fluctuations
+    qualityInterval = setInterval(() => {
+      const r = Math.random();
+      const el = $('live-quality');
+      if (r < 0.7) el.textContent = '720p · 1.4 Mbps';
+      else if (r < 0.92) el.textContent = '720p · 1.0 Mbps';
+      else el.textContent = '480p · 0.6 Mbps';
+    }, 5500);
+  }
+
+  function stopTimers() {
+    if (timerInterval) clearInterval(timerInterval);
+    if (viewerInterval) clearInterval(viewerInterval);
+    if (qualityInterval) clearInterval(qualityInterval);
+  }
+
+  // === Match logic ===
+  const setsHome = () => matchState.setsHistory.filter(([h, a]) => h > a).length;
+  const setsAway = () => matchState.setsHistory.filter(([h, a]) => a > h).length;
+  const currentSetNumber = () => Math.min(matchState.setsHistory.length + 1, matchFormat);
+  const setTarget = () => currentSetNumber() === matchFormat ? 15 : 25;
+  const setsToWin = () => Math.ceil(matchFormat / 2);
+
+  function pushHistory() {
+    history.push(JSON.parse(JSON.stringify(matchState)));
+    if (history.length > 30) history.shift();
+    $('btn-undo').disabled = false;
+  }
+
+  function renderMatch() {
+    $('home-score').textContent = matchState.home;
+    $('away-score').textContent = matchState.away;
+    $('set-num').textContent = currentSetNumber();
+    $('set-target').textContent = `TO ${setTarget()}`;
+
+    const sH = setsHome(), sA = setsAway();
+    const homeDots = $('home-sets').children;
+    const awayDots = $('away-sets').children;
+    for (let i = 0; i < homeDots.length; i++) {
+      homeDots[i].classList.toggle('won', i < sH);
+      awayDots[i].classList.toggle('won', i < sA);
+    }
+
+    $('home-plus').classList.toggle('dis', matchState.matchOver);
+    $('away-plus').classList.toggle('dis', matchState.matchOver);
+  }
+
+  function bumpScore(team) {
+    const el = $(team + '-score');
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
+  }
+
+  function addPoint(team) {
+    if (matchState.matchOver) return;
+    pushHistory();
+    if (team === 'home') matchState.home++; else matchState.away++;
+
+    let toastMsg;
+    if (team === 'home' && selectedPlayer) {
+      const [name, num] = selectedPlayer.split('|');
+      matchState.lastScorer = `#${num} ${name}`;
+      toastMsg = `${homeName} · #${num} ${name}`;
+      // clear selection
+      document.querySelectorAll('.player-chip').forEach(c => c.classList.remove('selected'));
+      $('home-attr-label').textContent = 'Attribute';
+      selectedPlayer = null;
+    } else if (team === 'home') {
+      toastMsg = `${homeName} · point`;
+    } else {
+      toastMsg = `${awayName} · point`;
+    }
+    showToast(toastMsg);
+
+    bumpScore(team);
+    checkSetEnd();
+    renderMatch();
+  }
+
+  function subtractPoint(team) {
+    if (matchState.matchOver) return;
+    pushHistory();
+    if (team === 'home') matchState.home = Math.max(0, matchState.home - 1);
+    else matchState.away = Math.max(0, matchState.away - 1);
+    renderMatch();
+  }
+
+  function checkSetEnd() {
+    const target = setTarget();
+    const reached = matchState.home >= target || matchState.away >= target;
+    const lead = Math.abs(matchState.home - matchState.away) >= 2;
+    if (!reached || !lead) return;
+
+    const winner = matchState.home > matchState.away ? 'home' : 'away';
+    const winnerName = winner === 'home' ? homeName : awayName;
+    const score = `${matchState.home}-${matchState.away}`;
+    matchState.setsHistory.push([matchState.home, matchState.away]);
+
+    showToast(`Set ${currentSetNumber() - 1} → ${winnerName} ${score}`);
+
+    const sH = setsHome(), sA = setsAway();
+    if (sH >= setsToWin() || sA >= setsToWin()) {
+      endMatch();
+    } else {
+      matchState.home = 0;
+      matchState.away = 0;
+    }
+  }
+
+  function forceEndSet() {
+    if (matchState.matchOver) return;
+    if (matchState.home === 0 && matchState.away === 0) {
+      showToast('Set has no points yet');
+      return;
+    }
+    if (matchState.home === matchState.away) {
+      showToast('Set must have a winner');
+      return;
+    }
+    pushHistory();
+    const winner = matchState.home > matchState.away ? 'home' : 'away';
+    const winnerName = winner === 'home' ? homeName : awayName;
+    matchState.setsHistory.push([matchState.home, matchState.away]);
+    showToast(`Set ${currentSetNumber() - 1} → ${winnerName}`);
+
+    const sH = setsHome(), sA = setsAway();
+    if (sH >= setsToWin() || sA >= setsToWin()) {
+      endMatch();
+    } else {
+      matchState.home = 0;
+      matchState.away = 0;
+    }
+    renderMatch();
+  }
+
+  function endMatch() {
+    matchState.matchOver = true;
+    stopTimers();
+    const sH = setsHome(), sA = setsAway();
+    const winner = sH > sA ? homeName : awayName;
+    $('me-winner').textContent = winner;
+    $('me-score').textContent = `${Math.max(sH, sA)} — ${Math.min(sH, sA)}`;
+
+    const m = Math.floor(elapsedSeconds / 60);
+    const setBreakdown = matchState.setsHistory.map((s, i) => `Set ${i + 1}: ${s[0]}-${s[1]}`).join('<br/>');
+    $('me-stats').innerHTML = `
+      <div class="stat-row"><span>Duration</span><span style="color:var(--text);font-weight:700;">${m} min</span></div>
+      <div class="stat-row"><span>Peak viewers</span><span style="color:var(--text);font-weight:700;">${viewers}</span></div>
+      <div class="stat-row"><span>Auto-clipped highlights</span><span style="color:var(--text);font-weight:700;">${matchState.setsHistory.length * 6}</span></div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;line-height:1.6;">${setBreakdown}</div>
+    `;
+    $('match-end').classList.add('active');
+  }
+
+  function undo() {
+    if (history.length === 0) return;
+    matchState = history.pop();
+    matchState.matchOver = false;
+    $('match-end').classList.remove('active');
+    if (history.length === 0) $('btn-undo').disabled = true;
+    renderMatch();
+  }
+
+  function swap() {
+    pushHistory();
+    [matchState.home, matchState.away] = [matchState.away, matchState.home];
+    [homeName, awayName] = [awayName, homeName];
+    matchState.setsHistory = matchState.setsHistory.map(([h, a]) => [a, h]);
+    $('home-name').textContent = homeName;
+    $('away-name').textContent = awayName;
+    renderMatch();
+    showToast('Sides swapped');
+  }
+
+  // === Player attribution ===
+  document.querySelectorAll('.player-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      if (selectedPlayer === chip.dataset.player) {
+        selectedPlayer = null;
+        chip.classList.remove('selected');
+        $('home-attr-label').textContent = 'Attribute';
+      } else {
+        document.querySelectorAll('.player-chip').forEach(c => c.classList.remove('selected'));
+        chip.classList.add('selected');
+        selectedPlayer = chip.dataset.player;
+        const [name] = selectedPlayer.split('|');
+        $('home-attr-label').textContent = name;
+      }
+    });
+  });
+
+  // === Bindings ===
+  $('home-plus').addEventListener('click', () => addPoint('home'));
+  $('away-plus').addEventListener('click', () => addPoint('away'));
+  $('home-minus').addEventListener('click', () => subtractPoint('home'));
+  $('away-minus').addEventListener('click', () => subtractPoint('away'));
+  $('btn-undo').addEventListener('click', undo);
+  $('btn-swap').addEventListener('click', swap);
+  $('btn-end-set').addEventListener('click', forceEndSet);
+  $('btn-timeout').addEventListener('click', () => showToast('Timeout — clock paused on viewer side'));
+  $('home-attribute').addEventListener('click', () => showToast('Tap a number below before scoring'));
+  $('btn-end').addEventListener('click', () => {
+    if (confirm('End the broadcast now?')) endMatch();
+  });
+  $('btn-end-broadcast').addEventListener('click', () => {
+    if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+    showToast('Broadcast saved · highlights ready in 2 min');
+    setTimeout(() => location.reload(), 1500);
+  });
+  $('btn-new-match').addEventListener('click', () => {
+    matchState = initMatchState();
+    history = [];
+    elapsedSeconds = 0;
+    viewers = 0;
+    $('match-end').classList.remove('active');
+    $('btn-undo').disabled = true;
+    renderMatch();
+    startTimers();
+  });
+
+  // Cleanup
+  window.addEventListener('pagehide', () => {
+    if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+    stopTimers();
+  });
+</script>
+</body>
+</html>

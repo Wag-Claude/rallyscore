@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0A0E1B" />
+<title>RallyScore — Project Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0E1B;
+    --bg-elev: #131829;
+    --bg-elev-2: #1B2138;
+    --border: #232A45;
+    --text: #F4F6FB;
+    --text-muted: #8A93AD;
+    --text-dim: #5A6280;
+    --accent: #FF4D2E;
+    --accent-2: #FFB800;
+    --success: #00D67D;
+    --info: #4D8DFF;
+    --gradient: linear-gradient(135deg, #FF4D2E 0%, #FF8A00 100%);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+  header {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 12px;
+  }
+  .brand-mark {
+    width: 52px; height: 52px;
+    border-radius: 14px;
+    background: var(--gradient);
+    display: grid; place-items: center;
+    font-family: 'Anton', sans-serif;
+    font-size: 28px; color: #fff;
+    box-shadow: 0 12px 24px rgba(255, 77, 46, 0.4);
+  }
+  h1 {
+    margin: 0; font-size: 32px; font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 15px; line-height: 1.55;
+    max-width: 640px;
+    margin: 8px 0 36px;
+  }
+  .pill-row {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 36px;
+  }
+  .pill {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .pill.active {
+    background: rgba(0, 214, 125, 0.12);
+    border-color: rgba(0, 214, 125, 0.3);
+    color: var(--success);
+  }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+  .card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px;
+    text-decoration: none;
+    color: var(--text);
+    display: flex; flex-direction: column;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(255, 77, 46, 0.4);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  }
+  .card::after {
+    content: '';
+    position: absolute;
+    top: -40%; right: -20%;
+    width: 140px; height: 140px;
+    background: radial-gradient(circle, rgba(255, 77, 46, 0.18), transparent 70%);
+    pointer-events: none;
+  }
+  .card-tag {
+    font-size: 10px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 3px 8px; border-radius: 5px;
+    align-self: flex-start;
+    margin-bottom: 14px;
+  }
+  .card-tag.lite { background: rgba(77, 141, 255, 0.15); color: var(--info); }
+  .card-tag.pro { background: rgba(255, 77, 46, 0.18); color: var(--accent); }
+  .card-tag.live { background: rgba(255, 184, 0, 0.18); color: var(--accent-2); }
+
+  .card h3 { margin: 0 0 8px; font-size: 18px; font-weight: 800; }
+  .card p {
+    margin: 0 0 18px;
+    color: var(--text-muted);
+    font-size: 13px; line-height: 1.5;
+    flex: 1;
+  }
+  .card-features {
+    list-style: none; padding: 0; margin: 0 0 18px;
+    font-size: 12px;
+  }
+  .card-features li {
+    padding: 4px 0;
+    color: var(--text-muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-features li::before {
+    content: '';
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+  .card-cta {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--gradient);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 11px;
+    font-weight: 700; font-size: 13px;
+    align-self: flex-start;
+    box-shadow: 0 8px 18px rgba(255, 77, 46, 0.35);
+  }
+  .card-cta svg { width: 14px; height: 14px; }
+
+  .price {
+    font-family: 'Anton', sans-serif;
+    color: var(--accent);
+    font-size: 18px;
+    margin-left: auto;
+  }
+  .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+
+  h2 {
+    font-size: 18px; font-weight: 800;
+    margin: 0 0 14px;
+  }
+  .funnel {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 32px;
+  }
+  .funnel p { color: var(--text-muted); font-size: 13px; line-height: 1.55; margin: 0 0 12px; }
+  .funnel ol { padding-left: 18px; margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+  .funnel ol li { padding: 3px 0; }
+  .funnel ol li strong { color: var(--text); }
+
+  .roadmap {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .month-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .month-tag {
+    font-size: 10px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--accent-2);
+    margin-bottom: 6px;
+  }
+  .month-card h4 { margin: 0 0 8px; font-size: 14px; font-weight: 700; }
+  .month-card p { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+    color: var(--text-dim);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand-mark">R</div>
+    <div>
+      <h1>RallyScore</h1>
+      <div style="color: var(--text-muted); font-size: 13px;">Project hub · 3 working prototypes</div>
+    </div>
+  </header>
+
+  <p class="subtitle">
+    Volleyball-first scoreboard ecosystem with two products — a free universal scorekeeper for the App Store, and a Pro subscription that broadcasts live video and stats to family members. Below are the four working prototypes covering the full end-to-end flow, ready to demo to clubs.
+  </p>
+
+  <div class="pill-row">
+    <span class="pill active">● Prototypes ready</span>
+    <span class="pill">Mobile-first PWA</span>
+    <span class="pill">Single-file HTML</span>
+    <span class="pill">No backend yet</span>
+    <span class="pill">English copy</span>
+    <span class="pill">End-to-end flow</span>
+  </div>
+
+  <div class="grid">
+
+    <a class="card" href="rallyscore-lite.html">
+      <span class="card-tag lite">Lite · Free + IAP</span>
+      <div class="card-head">
+        <h3>Universal Scoreboard</h3>
+        <span class="price">Free</span>
+      </div>
+      <p>Universal multi-sport scoreboard for refs, coaches and parents. Works fully offline on any phone or tablet.</p>
+      <ul class="card-features">
+        <li>Volleyball · Basketball · Soccer</li>
+        <li>Auto set/period rules per sport</li>
+        <li>Editable team names · Undo · Swap</li>
+        <li>Banner ads + $1.99 IAP to remove</li>
+        <li>Upgrade CTA to Pro</li>
+      </ul>
+      <span class="card-cta">
+        Open demo
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </span>
+    </a>
+
+    <a class="card" href="rallyscore-demo.html">
+      <span class="card-tag pro">Pro · $4.99/mo</span>
+      <div class="card-head">
+        <h3>Pro · Fan Companion</h3>
+        <span class="price">$4.99</span>
+      </div>
+      <p>The connected version. Family members follow their player live with notifications, season stats and league standings.</p>
+      <ul class="card-features">
+        <li>Live scoreboard with simulation</li>
+        <li>Team page · Roster · Schedule · Results</li>
+        <li>Followed-player feed with notifications</li>
+        <li>Season highlights and league standings</li>
+        <li>Volleyball rules engine (best of 5)</li>
+      </ul>
+      <span class="card-cta">
+        Open demo
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </span>
+    </a>
+
+    <a class="card" href="rallyscore-pro-live.html">
+      <span class="card-tag live">Pro · Viewer side</span>
+      <div class="card-head">
+        <h3>Live Broadcast Viewer</h3>
+        <span class="price">$4.99</span>
+      </div>
+      <p>What the parent sees while watching live. Real device camera, scoreboard overlay, cheer reactions and family chat.</p>
+      <ul class="card-features">
+        <li>Live video via device camera (real)</li>
+        <li>Floating scoreboard + serve indicator</li>
+        <li>Cheer reactions with floating emojis</li>
+        <li>Family chat + auto-clipped highlights</li>
+        <li>Verified family member · COPPA gate</li>
+      </ul>
+      <span class="card-cta">
+        Open demo
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </span>
+    </a>
+
+    <a class="card" href="rallyscore-pro-broadcaster.html">
+      <span class="card-tag live">Pro · Scorer side</span>
+      <div class="card-head">
+        <h3>Broadcaster (Scorer)</h3>
+        <span class="price">B2B</span>
+      </div>
+      <p>The other end of the live stream. The club's scorer sets up the match, runs the camera and inputs every point in real time.</p>
+      <ul class="card-features">
+        <li>Setup: teams, format, pre-flight checklist</li>
+        <li>3-2-1-LIVE countdown to broadcast</li>
+        <li>Massive +1/-1 buttons + player attribution</li>
+        <li>Auto end-of-set + match summary</li>
+        <li>Live viewer count + quality monitor</li>
+      </ul>
+      <span class="card-cta">
+        Open demo
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </span>
+    </a>
+
+  </div>
+
+  <h2>Why this product split works</h2>
+  <div class="funnel">
+    <p>The Lite app is the <strong>top of the funnel</strong> — high-volume free downloads via the App Store generate ad revenue, the $1.99 remove-ads IAP converts about 2-3% of active users, and every install becomes a warm lead for Pro.</p>
+    <ol>
+      <li><strong>Discover</strong> — A coach or parent searches "volleyball scoreboard" in the App Store and downloads Lite.</li>
+      <li><strong>Use & trust</strong> — They use it for 3-4 matches. Become familiar with the brand and the UX.</li>
+      <li><strong>Aspire</strong> — They see the "Go Live with Pro · Stream this match to fans" upgrade banner. Curiosity builds.</li>
+      <li><strong>Convert</strong> — When their kid plays a tournament far from home, they upgrade to Pro to share with family.</li>
+      <li><strong>Stick</strong> — Auto-clips of their child make it impossible to cancel after 2 months.</li>
+    </ol>
+  </div>
+
+  <h2>Roadmap · next 90 days</h2>
+  <div class="roadmap">
+    <div class="month-card">
+      <div class="month-tag">Month 1</div>
+      <h4>Lite to App Store</h4>
+      <p>Wrap the HTML in Capacitor or React Native, register Apple ($99/yr) and Google Play ($25 once), launch with banner ads + IAP. Goal: 1,000 downloads.</p>
+    </div>
+    <div class="month-card">
+      <div class="month-tag">Month 2</div>
+      <h4>Pro MVP backend</h4>
+      <p>Firebase or Supabase for real-time score sync. AWS IVS or Mux for live RTMP. Closed beta with 3-5 pilot clubs. Web/PWA first, no App Store yet.</p>
+    </div>
+    <div class="month-card">
+      <div class="month-tag">Month 3</div>
+      <h4>Pro public launch</h4>
+      <p>$4.99/mo subscription, $39.99/yr, 7-day trial. Auto-clip engine for highlights. In-app referral from Lite. Goal: 50 pay

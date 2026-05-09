@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0A0E1B" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="RallyScore Lite" />
+<title>RallyScore Lite — Universal Scoreboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0E1B;
+    --bg-elev: #131829;
+    --bg-elev-2: #1B2138;
+    --border: #232A45;
+    --text: #F4F6FB;
+    --text-muted: #8A93AD;
+    --text-dim: #5A6280;
+    --accent: #FF4D2E;
+    --accent-2: #FFB800;
+    --success: #00D67D;
+    --info: #4D8DFF;
+    --home: #FF4D2E;
+    --away: #4D8DFF;
+    --gradient: linear-gradient(135deg, #FF4D2E 0%, #FF8A00 100%);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
+  [data-sport="basketball"] { --home: #FF8A00; --away: #4D8DFF; }
+  [data-sport="soccer"]     { --home: #00D67D; --away: #FF4D2E; }
+  [data-sport="volleyball"] { --home: #FF4D2E; --away: #4D8DFF; }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #05060d;
+    color: var(--text);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+  body { display: flex; justify-content: center; min-height: 100vh; }
+  #app {
+    width: 100%; max-width: 430px;
+    min-height: 100vh;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    position: relative;
+    box-shadow: 0 0 60px rgba(255, 77, 46, 0.08);
+  }
+
+  /* Top bar */
+  .topbar {
+    padding: calc(var(--safe-top) + 12px) 16px 10px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 800; font-size: 17px;
+  }
+  .brand-mark {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: var(--gradient);
+    display: grid; place-items: center;
+    font-family: 'Anton', sans-serif;
+    font-size: 17px; color: #fff;
+    box-shadow: 0 4px 12px rgba(255, 77, 46, 0.4);
+  }
+  .lite-badge {
+    font-size: 9px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    background: var(--bg-elev-2); border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 3px 7px; border-radius: 999px;
+  }
+  .topbar-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border-radius: 11px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    display: grid; place-items: center;
+    color: var(--text); cursor: pointer;
+    transition: transform 0.12s ease;
+  }
+  .icon-btn:active { transform: scale(0.92); }
+
+  /* Sport selector */
+  .sport-tabs {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    padding: 12px 16px 6px;
+    background: var(--bg);
+  }
+  .sport-tab {
+    padding: 9px 6px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 12px;
+    font-size: 12px; font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.18s ease;
+  }
+  .sport-tab .ico {
+    font-size: 16px;
+    filter: grayscale(0.6);
+    transition: filter 0.18s ease;
+  }
+  .sport-tab.active {
+    background: linear-gradient(135deg, var(--home), var(--away));
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  }
+  .sport-tab.active .ico { filter: none; }
+  .sport-tab:active { transform: scale(0.97); }
+
+  /* Period bar */
+  .period-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+  }
+  .period-info {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .period-label {
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--text-muted);
+    font-weight: 700;
+  }
+  .period-value {
+    font-family: 'Anton', sans-serif;
+    font-size: 22px; line-height: 1;
+    color: var(--text);
+  }
+  .clock {
+    font-family: 'Anton', sans-serif;
+    font-size: 22px;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    padding: 4px 12px;
+    background: rgba(255, 77, 46, 0.1);
+    border: 1px solid rgba(255, 77, 46, 0.25);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .clock.running {
+    background: rgba(0, 214, 125, 0.12);
+    border-color: rgba(0, 214, 125, 0.4);
+    color: var(--success);
+  }
+  .clock.hidden { display: none; }
+
+  .period-actions { display: flex; gap: 6px; }
+  .period-btn {
+    padding: 6px 10px;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 9px;
+    font-size: 12px; font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+    transition: all 0.15s ease;
+  }
+  .period-btn:active { transform: scale(0.94); }
+
+  /* Teams */
+  .teams {
+    flex: 1;
+    display: grid; grid-template-rows: 1fr 1fr;
+    min-height: 0;
+  }
+  .team {
+    display: flex; flex-direction: column;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .team.home { background: linear-gradient(180deg, rgba(255, 77, 46, 0.08), transparent 70%); }
+  .team.away { background: linear-gradient(0deg, rgba(77, 141, 255, 0.08), transparent 70%); }
+  [data-sport="basketball"] .team.home { background: linear-gradient(180deg, rgba(255, 138, 0, 0.08), transparent 70%); }
+  [data-sport="basketball"] .team.away { background: linear-gradient(0deg, rgba(77, 141, 255, 0.08), transparent 70%); }
+  [data-sport="soccer"] .team.home { background: linear-gradient(180deg, rgba(0, 214, 125, 0.08), transparent 70%); }
+  [data-sport="soccer"] .team.away { background: linear-gradient(0deg, rgba(255, 77, 46, 0.08), transparent 70%); }
+
+  .team-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .team-name {
+    font-size: 15px; font-weight: 700;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: inherit;
+    padding: 4px 8px;
+    border-radius: 8px;
+    width: 60%;
+    outline: none;
+    transition: background 0.15s ease;
+  }
+  .team-name:focus { background: var(--bg-elev); }
+  .team-sets {
+    display: inline-flex; gap: 4px;
+  }
+  .set-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+  }
+  .team.home .set-dot.won { background: var(--home); }
+  .team.away .set-dot.won { background: var(--away); }
+
+  .team-score-row {
+    display: flex; align-items: center; gap: 12px;
+    flex: 1;
+  }
+  .team-score {
+    flex: 1;
+    font-family: 'Anton', sans-serif;
+    font-size: 88px;
+    line-height: 0.85;
+    text-align: center;
+    transition: transform 0.3s ease;
+    background: linear-gradient(180deg, var(--score-from, #fff) 0%, var(--score-to, #B5BCD1) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .team.home .team-score { --score-from: var(--home); --score-to: #fff; }
+  .team.away .team-score { --score-from: var(--away); --score-to: #fff; }
+  .team-score.bump {
+    animation: scoreBump 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes scoreBump {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.18); filter: drop-shadow(0 0 22px rgba(255, 77, 46, 0.5)); }
+    100% { transform: scale(1); }
+  }
+
+  .point-controls {
+    display: flex; flex-direction: column; gap: 6px;
+    width: 110px;
+  }
+  .point-btn {
+    flex: 1;
+    padding: 12px 8px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'Anton', sans-serif;
+    font-size: 22px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-elev);
+  }
+  .team.home .point-btn.primary {
+    background: linear-gradient(135deg, var(--home), color-mix(in srgb, var(--home) 60%, #000));
+    border-color: transparent; color: #fff;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
+  }
+  .team.away .point-btn.primary {
+    background: linear-gradient(135deg, var(--away), color-mix(in srgb, var(--away) 60%, #000));
+    border-color: transparent; color: #fff;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
+  }
+  .point-btn:active { transform: scale(0.94); }
+  .point-btn.minus {
+    flex: 0 0 38px;
+    font-family: inherit;
+    font-size: 18px;
+    color: var(--text-muted);
+    background: transparent;
+  }
+  .points-grid-3 {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+  }
+
+  /* Divider */
+  .divider {
+    height: 2px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      var(--home) 30%,
+      var(--away) 70%,
+      transparent 100%);
+    opacity: 0.6;
+  }
+
+  /* Bottom action bar */
+  .actions-bar {
+    display: flex; gap: 8px;
+    padding: 10px 16px;
+    background: var(--bg-elev);
+    border-top: 1px solid var(--border);
+  }
+  .action-btn {
+    flex: 1;
+    padding: 10px 8px;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 11px;
+    font-size: 12px; font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    transition: all 0.12s ease;
+  }
+  .action-btn:active { transform: scale(0.96); }
+  .action-btn.danger { color: #FF6E55; border-color: rgba(255, 110, 85, 0.3); }
+  .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Ad banner */
+  .ad-banner {
+    margin: 0 16px;
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex; align-items: center; gap: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ad-banner::before {
+    content: 'AD';
+    position: absolute; top: 4px; right: 6px;
+    font-size: 8px; font-weight: 800;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-dim);
+    padding: 2px 5px; border-radius: 4px;
+    letter-spacing: 0.1em;
+  }
+  .ad-icon {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    background: var(--gradient);
+    display: grid; place-items: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .ad-body { flex: 1; min-width: 0; }
+  .ad-title {
+    font-size: 12px; font-weight: 700;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .ad-sub {
+    font-size: 10px; color: var(--text-muted);
+    margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .ad-cta {
+    font-size: 11px; font-weight: 700;
+    color: var(--accent);
+    flex-shrink: 0;
+    padding: 6px 8px;
+  }
+
+  /* Upgrade banner */
+  .upgrade-banner {
+    margin: 8px 16px calc(10px + var(--safe-bottom));
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(255, 77, 46, 0.18), rgba(255, 184, 0, 0.08));
+    border: 1px solid rgba(255, 77, 46, 0.35);
+    border-radius: 14px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .upgrade-banner::after {
+    content: '';
+    position: absolute; top: -50%; right: -20%;
+    width: 100px; height: 200%;
+    background: radial-gradient(ellipse, rgba(255, 184, 0, 0.18), transparent 70%);
+    pointer-events: none;
+  }
+  .upgrade-icon {
+    width: 38px; height: 38px;
+    border-radius: 11px;
+    background: var(--gradient);
+    display: grid; place-items: center;
+    color: #fff;
+    flex-shrink: 0;
+    box-shadow: 0 6px 14px rgba(255, 77, 46, 0.4);
+    position: relative; z-index: 1;
+  }
+  .upgrade-body { flex: 1; position: relative; z-index: 1; }
+  .upgrade-title {
+    font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .upgrade-tag {
+    font-size: 9px; font-weight: 800;
+    background: var(--accent); color: #fff;
+    padding: 2px 6px; border-radius: 4px;
+    letter-spacing: 0.06em;
+  }
+  .upgrade-sub {
+    font-size: 11px; color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .upgrade-arrow {
+    color: var(--accent);
+    flex-shrink: 0;
+    position: relative; z-index: 1;
+  }
+
+  /* Match over overlay */
+  .match-over {
+    position: absolute; inset: 0;
+    background: rgba(5, 6, 13, 0.92);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 200;
+    animation: fadeOver 0.4s ease;
+  }
+  .match-over.active { display: flex; }
+  @keyframes fadeOver {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .match-over-card {
+    text-align: center;
+    padding: 32px 28px;
+    max-width: 320px;
+  }
+  .winner-cup {
+    font-size: 56px; margin-bottom: 12px;
+    filter: drop-shadow(0 0 20px rgba(255, 184, 0, 0.6));
+  }
+  .winner-label {
+    font-size: 11px; letter-spacing: 0.18em;
+    color: var(--accent-2); font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .winner-name {
+    font-family: 'Anton', sans-serif;
+    font-size: 36px; line-height: 1;
+    margin-bottom: 8px;
+  }
+  .winner-score {
+    font-size: 14px; color: var(--text-muted);
+    font-weight: 600; margin-bottom: 22px;
+  }
+  .match-over-actions {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .match-over-btn {
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-family: inherit; font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg-elev);
+    color: var(--text);
+  }
+  .match-over-btn.primary {
+    background: var(--gradient);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 8px 22px rgba(255, 77, 46, 0.4);
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 30px; left: 50%;
+    transform: translate(-50%, 30px);
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-size: 12px; font-weight: 600;
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 300;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+</style>
+</head>
+<body>
+<div id="app" data-sport="volleyball">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">R</div>
+      <span>RallyScore</span>
+      <span class="lite-badge">Lite</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="btn-settings" aria-label="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Sport tabs -->
+  <div class="sport-tabs">
+    <button class="sport-tab active" data-sport="volleyball">
+      <span class="ico">🏐</span> Volleyball
+    </button>
+    <button class="sport-tab" data-sport="basketball">
+      <span class="ico">🏀</span> Basketball
+    </button>
+    <button class="sport-tab" data-sport="soccer">
+      <span class="ico">⚽</span> Soccer
+    </button>
+  </div>
+
+  <!-- Period bar -->
+  <div class="period-bar">
+    <div class="period-info">
+      <span class="period-label" id="period-label">Set</span>
+      <span class="period-value" id="period-value">1 / 3</span>
+    </div>
+    <div class="clock hidden" id="clock">10:00</div>
+    <div class="period-actions">
+      <button class="period-btn" id="btn-next-period">
+        Next
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Teams -->
+  <div class="teams">
+    <div class="team home">
+      <div class="team-row">
+        <input type="text" class="team-name" id="home-name" value="Home" maxlength="20" />
+        <div class="team-sets" id="home-sets">
+          <div class="set-dot"></div>
+          <div class="set-dot"></div>
+          <div class="set-dot"></div>
+        </div>
+      </div>
+      <div class="team-score-row">
+        <button class="point-btn minus" id="home-minus">−1</button>
+        <div class="team-score" id="home-score">0</div>
+        <div class="point-controls" id="home-controls">
+          <button class="point-btn primary" data-team="home" data-pts="1">+1</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="team away">
+      <div class="team-row">
+        <input type="text" class="team-name" id="away-name" value="Away" maxlength="20" />
+        <div class="team-sets" id="away-sets">
+          <div class="set-dot"></div>
+          <div class="set-dot"></div>
+          <div class="set-dot"></div>
+        </div>
+      </div>
+      <div class="team-score-row">
+        <button class="point-btn minus" id="away-minus">−1</button>
+        <div class="team-score" id="away-score">0</div>
+        <div class="point-controls" id="away-controls">
+          <button class="point-btn primary" data-team="away" data-pts="1">+1</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action bar -->
+  <div class="actions-bar">
+    <button class="action-btn" id="btn-undo">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
+      Undo
+    </button>
+    <button class="action-btn" id="btn-swap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      Swap
+    </button>
+    <button class="action-btn danger" id="btn-reset">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      Reset
+    </button>
+  </div>
+
+  <!-- Ad banner -->
+  <div class="ad-banner" id="ad-banner">
+    <div class="ad-icon" id="ad-icon">🛒</div>
+    <div class="ad-body">
+      <div class="ad-title" id="ad-title">Mikasa Match Ball — 20% Off</div>
+      <div class="ad-sub" id="ad-sub">Free shipping on orders over $50</div>
+    </div>
+    <div class="ad-cta">Shop ›</div>
+  </div>
+
+  <!-- Upgrade banner -->
+  <div class="upgrade-banner" id="upgrade-banner">
+    <div class="upgrade-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+    </div>
+    <div class="upgrade-body">
+      <div class="upgrade-title">Go Live with RallyScore Pro <span class="upgrade-tag">PRO</span></div>
+      <div class="upgrade-sub">Stream this match to fans · Auto highlights · No ads · $4.99/mo</div>
+    </div>
+    <div class="upgrade-arrow">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </div>
+
+  <!-- Match over overlay -->
+  <div class="match-over" id="match-over">
+    <div class="match-over-card">
+      <div class="winner-cup">🏆</div>
+      <div class="winner-label">MATCH WINNER</div>
+      <div class="winner-name" id="winner-name">Home</div>
+      <div class="winner-score" id="winner-score">2 — 0</div>
+      <div class="match-over-actions">
+        <button class="match-over-btn primary" id="btn-rematch">New match</button>
+        <button class="match-over-btn" id="btn-keep">Keep on screen</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // Sport configurations
+  const SPORTS = {
+    volleyball: {
+      name: 'Volleyball',
+      icon: '🏐',
+      pointButtons: [1],
+      periodLabel: 'Set',
+      periodMax: 3, // best of 3
+      autoEndSet: true,
+      target: 25,
+      targetFinal: 15,
+      twoPointLead: true,
+      hasClock: false
+    },
+    basketball: {
+      name: 'Basketball',
+      icon: '🏀',
+      pointButtons: [1, 2, 3],
+      periodLabel: 'Quarter',
+      periodMax: 4,
+      autoEndSet: false,
+      hasClock: true,
+      clockStart: 10 * 60,
+      clockDirection: 'down'
+    },
+    soccer: {
+      name: 'Soccer',
+      icon: '⚽',
+      pointButtons: [1],
+      periodLabel: 'Half',
+      periodMax: 2,
+      autoEndSet: false,
+      hasClock: true,
+      clockStart: 0,
+      clockDirection: 'up',
+      clockMax: 45 * 60
+    }
+  };
+
+  // State
+  let activeSport = 'volleyball';
+  let state = freshState();
+  let history = [];
+  let clockInterval = null;
+  let clockSeconds = 0;
+  let clockRunning = false;
+
+  function freshState() {
+    return {
+      home: 0,
+      away: 0,
+      homeName: 'Home',
+      awayName: 'Away',
+      period: 1,
+      setsHistory: [],
+      matchOver: false
+    };
+  }
+
+  // Utility
+  const $ = (id) => document.getElementById(id);
+  const sportCfg = () => SPORTS[activeSport];
+
+  function setsHome() { return state.setsHistory.filter(([h, a]) => h > a).length; }
+  function setsAway() { return state.setsHistory.filter(([h, a]) => a > h).length; }
+
+  function pushHistory() {
+    history.push(JSON.parse(JSON.stringify(state)));
+    if (history.length > 20) history.shift();
+    $('btn-undo').disabled = false;
+  }
+
+  function showToast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // Render
+  function render() {
+    $('home-score').textContent = state.home;
+    $('away-score').textContent = state.away;
+    $('home-name').value = state.homeName;
+    $('away-name').value = state.awayName;
+
+    const cfg = sportCfg();
+    $('period-label').textContent = cfg.periodLabel;
+    $('period-value').textContent = `${state.period} / ${cfg.periodMax}`;
+
+    // Set dots (volleyball only)
+    const homeDots = $('home-sets').children;
+    const awayDots = $('away-sets').children;
+    const sH = setsHome(), sA = setsAway();
+    for (let i = 0; i < homeDots.length; i++) {
+      homeDots[i].classList.toggle('won', i < sH);
+      awayDots[i].classList.toggle('won', i < sA);
+    }
+    $('home-sets').style.display = activeSport === 'volleyball' ? '' : 'none';
+    $('away-sets').style.display = activeSport === 'volleyball' ? '' : 'none';
+
+    // Build point buttons per sport
+    rebuildPointButtons();
+    renderClock();
+  }
+
+  function rebuildPointButtons() {
+    const cfg = sportCfg();
+    const homeC = $('home-controls');
+    const awayC = $('away-controls');
+    homeC.innerHTML = ''; awayC.innerHTML = '';
+
+    if (cfg.pointButtons.length === 1) {
+      ['home', 'away'].forEach(team => {
+        const target = team === 'home' ? homeC : awayC;
+        const btn = document.createElement('button');
+        btn.className = 'point-btn primary';
+        btn.dataset.team = team;
+        btn.dataset.pts = '1';
+        btn.textContent = '+1';
+        target.appendChild(btn);
+      });
+    } else {
+      ['home', 'away'].forEach(team => {
+        const target = team === 'home' ? homeC : awayC;
+        target.classList.add('points-grid-3');
+        cfg.pointButtons.forEach(pts => {
+          const btn = document.createElement('button');
+          btn.className = 'point-btn primary';
+          btn.dataset.team = team;
+          btn.dataset.pts = String(pts);
+          btn.textContent = '+' + pts;
+          target.appendChild(btn);
+        });
+      });
+    }
+
+    // Re-bind point buttons
+    document.querySelectorAll('.point-btn[data-team]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        addPoints(btn.dataset.team, parseInt(btn.dataset.pts, 10));
+      });
+    });
+  }
+
+  function renderClock() {
+    const cfg = sportCfg();
+    const clockEl = $('clock');
+    if (!cfg.hasClock) {
+      clockEl.classList.add('hidden');
+      stopClock();
+      return;
+    }
+    clockEl.classList.remove('hidden');
+    const m = Math.floor(clockSeconds / 60).toString().padStart(2, '0');
+    const s = (clockSeconds % 60).toString().padStart(2, '0');
+    clockEl.textContent = `${m}:${s}`;
+    clockEl.classList.toggle('running', clockRunning);
+  }
+
+  function setupClockForCurrentSport() {
+    const cfg = sportCfg();
+    if (!cfg.hasClock) {
+      stopClock();
+      clockSeconds = 0;
+      return;
+    }
+    clockSeconds = cfg.clockStart;
+    stopClock();
+    renderClock();
+  }
+
+  function toggleClock() {
+    const cfg = sportCfg();
+    if (!cfg.hasClock) return;
+    if (clockRunning) {
+      stopClock();
+    } else {
+      startClock();
+    }
+  }
+
+  function startClock() {
+    const cfg = sportCfg();
+    clockRunning = true;
+    clockInterval = setInterval(() => {
+      if (cfg.clockDirection === 'down') {
+        clockSeconds = Math.max(0, clockSeconds - 1);
+        if (clockSeconds === 0) {
+          stopClock();
+          showToast('Period ended — tap "Next" to advance');
+        }
+      } else {
+        clockSeconds++;
+        if (cfg.clockMax && clockSeconds >= cfg.clockMax) {
+          stopClock();
+          showToast('Half ended — tap "Next" to advance');
+        }
+      }
+      renderClock();
+    }, 1000);
+    renderClock();
+  }
+
+  function stopClock() {
+    if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
+    clockRunning = false;
+    renderClock();
+  }
+
+  // Actions
+  function addPoints(team, pts) {
+    if (state.matchOver) return;
+    pushHistory();
+    if (team === 'home') state.home += pts; else state.away += pts;
+    bumpScore(team);
+
+    if (activeSport === 'volleyball' && sportCfg().autoEndSet) {
+      checkVolleyballSetEnd();
+    }
+    render();
+  }
+
+  function subtractPoint(team) {
+    if (state.matchOver) return;
+    pushHistory();
+    if (team === 'home') state.home = Math.max(0, state.home - 1);
+    else state.away = Math.max(0, state.away - 1);
+    render();
+  }
+
+  function bumpScore(team) {
+    const el = $(team + '-score');
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
+  }
+
+  function checkVolleyballSetEnd() {
+    const cfg = sportCfg();
+    const isFinal = state.period === cfg.periodMax;
+    const target = isFinal ? cfg.targetFinal : cfg.target;
+    const reached = state.home >= target || state.away >= target;
+    const lead = Math.abs(state.home - state.away) >= 2;
+    if (reached && lead) {
+      state.setsHistory.push([state.home, state.away]);
+      const setNum = state.period;
+      const winner = state.home > state.away ? state.homeName : state.awayName;
+      const score = `${state.home}–${state.away}`;
+      showToast(`Set ${setNum} → ${winner} ${score}`);
+
+      const sH = setsHome(), sA = setsAway();
+      // Best of 3 → first to 2 sets wins
+      const setsToWin = Math.ceil(cfg.periodMax / 2);
+      if (sH >= setsToWin || sA >= setsToWin) {
+        endMatch();
+      } else {
+        state.home = 0;
+        state.away = 0;
+        state.period = Math.min(state.period + 1, cfg.periodMax);
+      }
+    }
+  }
+
+  function nextPeriod() {
+    const cfg = sportCfg();
+    if (state.period >= cfg.periodMax) {
+      // For basketball/soccer: end match on Next at last period
+      if (!cfg.autoEndSet) {
+        endMatch();
+      }
+      return;
+    }
+    pushHistory();
+    if (activeSport === 'volleyball') {
+      // Manual advance even without reaching score
+      state.period++;
+    } else {
+      state.period++;
+      // Reset clock for new period
+      setupClockForCurrentSport();
+    }
+    render();
+  }
+
+  function endMatch() {
+    state.matchOver = true;
+    stopClock();
+
+    let winner, sub;
+    if (activeSport === 'volleyball') {
+      const sH = setsHome(), sA = setsAway();
+      winner = sH > sA ? state.homeName : sA > sH ? state.awayName : '';
+      sub = `${Math.max(sH, sA)} — ${Math.min(sH, sA)}`;
+    } else {
+      if (state.home > state.away) { winner = state.homeName; sub = `${state.home} — ${state.away}`; }
+      else if (state.away > state.home) { winner = state.awayName; sub = `${state.away} — ${state.home}`; }
+      else { winner = 'Draw'; sub = `${state.home} — ${state.away}`; }
+    }
+
+    $('winner-name').textContent = winner;
+    $('winner-score').textContent = sub;
+    $('match-over').classList.add('active');
+  }
+
+  function resetMatch() {
+    if (!confirm('Reset the match? All scores will be cleared.')) return;
+    state = freshState();
+    state.homeName = $('home-name').value || 'Home';
+    state.awayName = $('away-name').value || 'Away';
+    history = [];
+    $('btn-undo').disabled = true;
+    setupClockForCurrentSport();
+    $('match-over').classList.remove('active');
+    render();
+    showToast('Match reset');
+  }
+
+  function newMatch() {
+    state = freshState();
+    history = [];
+    $('btn-undo').disabled = true;
+    setupClockForCurrentSport();
+    $('match-over').classList.remove('active');
+    render();
+  }
+
+  function swap() {
+    pushHistory();
+    [state.home, state.away] = [state.away, state.home];
+    [state.homeName, state.awayName] = [state.awayName, state.homeName];
+    state.setsHistory = state.setsHistory.map(([h, a]) => [a, h]);
+    render();
+    showToast('Sides swapped');
+  }
+
+  function undo() {
+    if (history.length === 0) return;
+    state = history.pop();
+    state.matchOver = false;
+    $('match-over').classList.remove('active');
+    if (history.length === 0) $('btn-undo').disabled = true;
+    render();
+  }
+
+  function changeSport(sport) {
+    if (sport === activeSport) return;
+    activeSport = sport;
+    document.getElementById('app').dataset.sport = sport;
+    document.querySelectorAll('.sport-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.sport === sport);
+    });
+    state = freshState();
+    history = [];
+    $('btn-undo').disabled = true;
+    setupClockForCurrentSport();
+    $('match-over').classList.remove('active');
+    render();
+  }
+
+  // Mock ad rotation
+  const ADS = [
+    { icon: '🛒', title: 'Mikasa Match Ball — 20% Off', sub: 'Free shipping on orders over $50' },
+    { icon: '👟', title: 'Asics GEL-Rocket — New colors', sub: 'Indoor court shoes for volleyball' },
+    { icon: '💪', title: 'McDavid Knee Pads — 30% Off', sub: 'Pro-level protection for diggers' },
+    { icon: '🏐', title: 'Sand4U Sleeve Pads — Free returns', sub: 'Beach volleyball gear for the season' },
+    { icon: '📺', title: 'NCAA Volleyball Live — ESPN+', sub: 'Stream every conference match' }
+  ];
+  let adIdx = 0;
+  function rotateAd() {
+    adIdx = (adIdx + 1) % ADS.length;
+    const ad = ADS[adIdx];
+    $('ad-icon').textContent = ad.icon;
+    $('ad-title').textContent = ad.title;
+    $('ad-sub').textContent = ad.sub;
+  }
+  setInterval(rotateAd, 7000);
+
+  // Bindings
+  document.querySelectorAll('.sport-tab').forEach(tab => {
+    tab.addEventListener('click', () => changeSport(tab.dataset.sport));
+  });
+  $('home-minus').addEventListener('click', () => subtractPoint('home'));
+  $('away-minus').addEventListener('click', () => subtractPoint('away'));
+  $('btn-next-period').addEventListener('click', nextPeriod);
+  $('btn-reset').addEventListener('click', resetMatch);
+  $('btn-undo').addEventListener('click', undo);
+  $('btn-swap').addEventListener('click', swap);
+  $('clock').addEventListener('click', toggleClock);
+  $('btn-rematch').addEventListener('click', newMatch);
+  $('btn-keep').addEventListener('click', () => $('match-over').classList.remove('active'));
+  $('home-name').addEventListener('change', e => state.homeName = e.target.value || 'Home');
+  $('away-name').addEventListener('change', e => state.awayName = e.target.value || 'Away');
+  $('home-name').addEventListener('blur', e => { if (!e.target.value) e.target.value = state.homeName; });
+  $('away-name').addEventListener('blur', e => { if (!e.target.value) e.target.value = state.awayName; });
+  $('upgrade-banner').addEventListener('click', () => {
+    showToast('Upgrade flow → would open in real app');
+  });
+  $('ad-banner').addEventListener('click', () => {
+    showToast('Ad tap → would open advertiser link');
+  });
+  $('btn-settings').addEventListener('click', () => {
+    showToast('Settings → team colors, clock duration, etc.');
+  });
+
+  // Init
+  $('btn-undo').disabled = true;
+  setupClockForCurrentSport();
+  render();
+</script>
+</body>
+</html>

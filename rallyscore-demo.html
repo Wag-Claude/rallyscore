@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0A0E1B" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="RallyScore" />
+<title>RallyScore — Live volleyball for your family</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0E1B;
+    --bg-elev: #131829;
+    --bg-elev-2: #1B2138;
+    --border: #232A45;
+    --text: #F4F6FB;
+    --text-muted: #8A93AD;
+    --text-dim: #5A6280;
+    --accent: #FF4D2E;
+    --accent-2: #FFB800;
+    --success: #00D67D;
+    --info: #4D8DFF;
+    --gradient: linear-gradient(135deg, #FF4D2E 0%, #FF8A00 100%);
+    --gradient-dark: linear-gradient(180deg, #131829 0%, #0A0E1B 100%);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    background: #05060d;
+  }
+  #app {
+    width: 100%;
+    max-width: 430px;
+    min-height: 100vh;
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(255, 77, 46, 0.08);
+  }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    padding: calc(var(--safe-top) + 14px) 18px 12px;
+    background: rgba(10, 14, 27, 0.85);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 800; font-size: 18px; letter-spacing: -0.01em;
+  }
+  .brand-mark {
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    background: var(--gradient);
+    display: grid; place-items: center;
+    font-family: 'Anton', sans-serif;
+    font-size: 18px; color: #fff;
+    box-shadow: 0 6px 16px rgba(255, 77, 46, 0.4);
+  }
+  .topbar-actions { display: flex; gap: 10px; }
+  .icon-btn {
+    width: 38px; height: 38px;
+    border-radius: 12px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    display: grid; place-items: center;
+    color: var(--text); cursor: pointer;
+    position: relative;
+    transition: transform 0.15s ease;
+  }
+  .icon-btn:active { transform: scale(0.92); }
+  .icon-btn .dot {
+    position: absolute; top: 8px; right: 8px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 0 2px var(--bg-elev);
+  }
+
+  .page { display: none; padding-bottom: 100px; animation: fadeIn 0.25s ease; }
+  .page.active { display: block; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .live-hero {
+    padding: 18px;
+    background: var(--gradient-dark);
+    position: relative;
+  }
+  .live-meta {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    font-weight: 600; margin-bottom: 14px;
+  }
+  .live-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255, 77, 46, 0.12);
+    color: var(--accent);
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+    border: 1px solid rgba(255, 77, 46, 0.3);
+  }
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.3); }
+  }
+
+  .scoreboard {
+    background: linear-gradient(155deg, #1B2138 0%, #0E1326 100%);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 22px 20px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+    position: relative;
+    overflow: hidden;
+  }
+  .scoreboard::before {
+    content: '';
+    position: absolute; top: -40%; right: -30%;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(255, 77, 46, 0.18), transparent 70%);
+    pointer-events: none;
+  }
+
+  .set-info {
+    text-align: center;
+    font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    font-weight: 600;
+  }
+
+  .teams-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px; align-items: center;
+  }
+  .team-block { text-align: center; }
+  .team-logo {
+    width: 60px; height: 60px;
+    margin: 0 auto 8px;
+    border-radius: 16px;
+    display: grid; place-items: center;
+    font-family: 'Anton', sans-serif;
+    font-size: 24px; letter-spacing: 0.02em;
+    border: 2px solid rgba(255, 255, 255, 0.08);
+  }
+  .team-logo.home { background: linear-gradient(135deg, #FF4D2E, #C41A00); color: #fff; }
+  .team-logo.away { background: linear-gradient(135deg, #4D8DFF, #1E5FCC); color: #fff; }
+  .team-name {
+    font-size: 14px; font-weight: 700;
+    line-height: 1.2; margin-bottom: 4px;
+  }
+  .team-sub {
+    font-size: 11px; color: var(--text-dim);
+    letter-spacing: 0.04em;
+  }
+  .team-sets {
+    margin-top: 8px;
+    display: inline-flex; gap: 3px;
+  }
+  .set-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .set-dot.won { background: var(--success); }
+
+  .vs-divider {
+    font-family: 'Anton', sans-serif;
+    font-size: 14px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+  }
+
+  .scores-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px; align-items: center;
+    margin-top: 18px;
+  }
+  .score-big {
+    font-family: 'Anton', sans-serif;
+    font-size: 84px; line-height: 0.85;
+    text-align: center;
+    background: linear-gradient(180deg, #fff 0%, #B5BCD1 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    transition: transform 0.3s ease, color 0.3s ease;
+  }
+  .score-big.bump {
+    animation: scoreBump 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes scoreBump {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.18); filter: drop-shadow(0 0 18px rgba(255, 77, 46, 0.6)); }
+    100% { transform: scale(1); }
+  }
+  .score-divider {
+    font-family: 'Anton', sans-serif;
+    font-size: 36px; color: var(--text-dim);
+    margin: 0 4px;
+  }
+
+  .serve-indicator {
+    display: flex; justify-content: center; gap: 24px;
+    margin-top: 14px;
+  }
+  .serve-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    transition: color 0.3s ease;
+  }
+  .serve-pill.serving { color: var(--accent-2); }
+  .ball-icon {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: background 0.3s ease, transform 0.3s ease;
+    box-shadow: inset -2px -2px 4px rgba(0,0,0,0.25);
+  }
+  .serve-pill.serving .ball-icon {
+    background: var(--accent-2);
+    transform: rotate(45deg) scale(1.05);
+    box-shadow: 0 0 12px rgba(255, 184, 0, 0.6), inset -2px -2px 4px rgba(0,0,0,0.25);
+  }
+
+  .sets-table {
+    margin-top: 18px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 14px;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr repeat(5, 36px);
+    gap: 6px 4px;
+    font-size: 12px;
+    align-items: center;
+  }
+  .sets-table .label { color: var(--text-muted); font-weight: 600; font-size: 11px; }
+  .sets-table .header {
+    text-align: center; color: var(--text-dim);
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase;
+  }
+  .sets-table .cell {
+    text-align: center;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    padding: 4px 0;
+    border-radius: 6px;
+  }
+  .sets-table .cell.current {
+    background: rgba(255, 77, 46, 0.15);
+    color: var(--accent);
+  }
+  .sets-table .cell.win { color: var(--success); }
+  .sets-table .cell.lose { color: var(--text-dim); }
+
+  .match-info {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 14px 18px 0;
+  }
+  .info-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    padding: 7px 12px; border-radius: 999px;
+    font-size: 12px; color: var(--text-muted);
+    font-weight: 500;
+  }
+  .info-chip svg { width: 14px; height: 14px; opacity: 0.8; }
+
+  .section { padding: 18px; }
+  .section-title {
+    font-size: 16px; font-weight: 800;
+    margin: 0 0 14px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .section-title .link {
+    font-size: 12px; color: var(--accent);
+    font-weight: 600; cursor: pointer;
+  }
+
+  .point-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 8px;
+    transition: transform 0.2s ease;
+  }
+  .point-item.new {
+    animation: slideIn 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    border-color: rgba(255, 77, 46, 0.4);
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .point-score {
+    font-family: 'Anton', sans-serif;
+    font-size: 16px;
+    color: var(--accent);
+    min-width: 50px; text-align: center;
+    background: rgba(255, 77, 46, 0.12);
+    border-radius: 8px;
+    padding: 4px 6px;
+    letter-spacing: 0.02em;
+  }
+  .point-score.away {
+    color: var(--info);
+    background: rgba(77, 141, 255, 0.12);
+  }
+  .point-text { flex: 1; font-size: 13px; line-height: 1.35; }
+  .point-text strong { font-weight: 700; }
+  .point-time { font-size: 11px; color: var(--text-dim); }
+
+  .demo-bar {
+    display: flex; gap: 10px;
+    padding: 0 18px;
+    margin-top: 4px;
+  }
+  .demo-btn {
+    flex: 1;
+    padding: 12px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 14px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.15s ease;
+  }
+  .demo-btn.primary {
+    background: var(--gradient);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 8px 22px rgba(255, 77, 46, 0.35);
+  }
+  .demo-btn:active { transform: scale(0.97); }
+
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex; justify-content: center;
+    pointer-events: none;
+    padding: 10px 12px calc(10px + var(--safe-bottom));
+  }
+  .nav-inner {
+    width: 100%; max-width: 408px;
+    background: rgba(19, 24, 41, 0.92);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 8px;
+    display: flex;
+    pointer-events: auto;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+  }
+  .nav-btn {
+    flex: 1;
+    padding: 10px 6px;
+    background: transparent;
+    border: 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 3px;
+    font-size: 10px; font-weight: 600;
+    border-radius: 14px;
+    transition: all 0.2s ease;
+  }
+  .nav-btn svg { width: 22px; height: 22px; }
+  .nav-btn.active {
+    color: var(--text);
+    background: var(--bg-elev-2);
+  }
+  .nav-btn.active svg { color: var(--accent); }
+  .nav-btn:active { transform: scale(0.92); }
+
+  .team-header {
+    background: var(--gradient);
+    margin: 0; padding: 24px 18px 22px;
+    position: relative; overflow: hidden;
+  }
+  .team-header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 80% 20%, rgba(255,255,255,0.18), transparent 50%);
+    pointer-events: none;
+  }
+  .team-header-row {
+    display: flex; align-items: center; gap: 14px;
+    position: relative;
+  }
+  .team-header .team-logo {
+    margin: 0; width: 72px; height: 72px;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(8px);
+    border: 2px solid rgba(255,255,255,0.4);
+    color: #fff; font-size: 28px;
+  }
+  .team-header h2 {
+    margin: 0 0 4px; font-size: 22px; font-weight: 800;
+    color: #fff;
+  }
+  .team-header .league {
+    font-size: 13px; color: rgba(255,255,255,0.85);
+    font-weight: 500;
+  }
+  .team-stats {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; margin-top: 18px;
+    position: relative;
+  }
+  .stat-box {
+    background: rgba(0,0,0,0.2);
+    backdrop-filter: blur(6px);
+    padding: 10px 8px;
+    border-radius: 12px;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: 'Anton', sans-serif;
+    font-size: 22px; line-height: 1;
+    color: #fff;
+  }
+  .stat-label {
+    font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: rgba(255,255,255,0.85);
+    margin-top: 4px; font-weight: 600;
+  }
+
+  .tabs {
+    display: flex; gap: 6px;
+    padding: 14px 18px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: 8px 14px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 999px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+    transition: all 0.15s ease;
+  }
+  .tab.active {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+
+  .roster-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .player-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .player-card:hover { border-color: var(--accent); }
+  .player-card.featured {
+    background: linear-gradient(135deg, rgba(255, 77, 46, 0.18), rgba(255, 184, 0, 0.08));
+    border-color: rgba(255, 77, 46, 0.4);
+  }
+  .player-num {
+    width: 42px; height: 42px;
+    border-radius: 12px;
+    background: var(--bg-elev-2);
+    display: grid; place-items: center;
+    font-family: 'Anton', sans-serif;
+    font-size: 22px; color: var(--text);
+  }
+  .player-card.featured .player-num {
+    background: var(--gradient); color: #fff;
+  }
+  .player-info { flex: 1; min-width: 0; }
+  .player-name {
+    font-size: 13px; font-weight: 700;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .player-pos {
+    font-size: 11px; color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .match-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .match-date {
+    width: 50px; flex-shrink: 0;
+    text-align: center;
+    border-right: 1px solid var(--border);
+    padding-right: 12px;
+  }
+  .match-day {
+    font-family: 'Anton', sans-serif;
+    font-size: 22px; line-height: 1;
+  }
+  .match-month {
+    font-size: 10px; text-transform: uppercase;
+    color: var(--text-muted); margin-top: 2px;
+    letter-spacing: 0.06em; font-weight: 700;
+  }
+  .match-body { flex: 1; min-width: 0; }
+  .match-opponent { font-size: 13px; font-weight: 700; }
+  .match-meta {
+    font-size: 11px; color: var(--text-muted);
+    margin-top: 3px;
+  }
+  .match-result {
+    text-align: right;
+    font-family: 'Anton', sans-serif;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .match-result .w { color: var(--success); }
+  .match-result .l { color: var(--text-dim); }
+  .match-tag {
+    font-size: 10px; padding: 3px 7px;
+    border-radius: 6px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    font-weight: 700;
+    display: inline-block;
+  }
+  .match-tag.live { background: rgba(255, 77, 46, 0.15); color: var(--accent); }
+  .match-tag.upcoming { background: rgba(77, 141, 255, 0.12); color: var(--info); }
+
+  .featured-card {
+    margin: 18px;
+    background: linear-gradient(135deg, #1B2138 0%, #0E1326 100%);
+    border: 1px solid rgba(255, 77, 46, 0.25);
+    border-radius: 22px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .featured-card::before {
+    content: '';
+    position: absolute; bottom: -50px; right: -50px;
+    width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(255, 77, 46, 0.18), transparent 70%);
+    pointer-events: none;
+  }
+  .featured-head {
+    display: flex; align-items: center; gap: 14px;
+    position: relative;
+  }
+  .featured-avatar {
+    width: 64px; height: 64px;
+    border-radius: 18px;
+    background: var(--gradient);
+    display: grid; place-items: center;
+    font-family: 'Anton', sans-serif;
+    font-size: 26px; color: #fff;
+    box-shadow: 0 8px 22px rgba(255, 77, 46, 0.4);
+    position: relative;
+  }
+  .featured-avatar .badge {
+    position: absolute; bottom: -4px; right: -4px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 2px solid var(--accent);
+    display: grid; place-items: center;
+    font-size: 11px; color: var(--accent);
+  }
+  .featured-info { flex: 1; }
+  .featured-tag {
+    font-size: 10px; text-transform: uppercase;
+    color: var(--accent); font-weight: 700;
+    letter-spacing: 0.1em; margin-bottom: 4px;
+  }
+  .featured-name { font-size: 18px; font-weight: 800; }
+  .featured-team { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .featured-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; margin-top: 16px;
+    position: relative;
+  }
+  .featured-stats .stat-box {
+    background: rgba(0,0,0,0.3);
+  }
+  .featured-stats .stat-num { font-size: 20px; }
+
+  .notif-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 8px;
+  }
+  .notif-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    background: rgba(255, 77, 46, 0.12);
+    color: var(--accent);
+  }
+  .notif-icon.green { background: rgba(0, 214, 125, 0.12); color: var(--success); }
+  .notif-icon.blue { background: rgba(77, 141, 255, 0.12); color: var(--info); }
+  .notif-icon.yellow { background: rgba(255, 184, 0, 0.12); color: var(--accent-2); }
+  .notif-body { flex: 1; min-width: 0; }
+  .notif-text { font-size: 13px; line-height: 1.4; }
+  .notif-text strong { font-weight: 700; }
+  .notif-time { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+  .highlights {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .highlight {
+    aspect-ratio: 9/12;
+    background: linear-gradient(180deg, #1E2540, #0F1424);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    position: relative; overflow: hidden;
+    cursor: pointer;
+  }
+  .highlight::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.85) 100%);
+  }
+  .highlight-play {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(6px);
+    border: 1.5px solid rgba(255,255,255,0.5);
+    display: grid; place-items: center;
+    z-index: 2;
+  }
+  .highlight-info {
+    position: absolute; bottom: 10px; left: 10px; right: 10px;
+    z-index: 2;
+  }
+  .highlight-title { font-size: 11px; font-weight: 700; }
+  .highlight-meta { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  .highlight-bg-1 { background: linear-gradient(135deg, #FF4D2E, #C41A00); }
+  .highlight-bg-2 { background: linear-gradient(135deg, #4D8DFF, #1E5FCC); }
+  .highlight-bg-3 { background: linear-gradient(135deg, #00D67D, #007A47); }
+  .highlight-bg-4 { background: linear-gradient(135deg, #FFB800, #C47800); }
+
+  .standings {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .standings-row {
+    display: grid;
+    grid-template-columns: 28px 1fr 30px 30px 50px;
+    align-items: center;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .standings-row:last-child { border-bottom: 0; }
+  .standings-row.head {
+    font-size: 10px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 700;
+    background: rgba(0,0,0,0.2);
+  }
+  .standings-row.mine {
+    background: rgba(255, 77, 46, 0.06);
+    border-left: 3px solid var(--accent);
+  }
+  .standings-rank {
+    font-family: 'Anton', sans-serif;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  .standings-row.mine .standings-rank { color: var(--accent); }
+  .standings-team { font-weight: 600; }
+  .standings-num {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+  }
+  .standings-pts {
+    text-align: right;
+    font-weight: 800;
+    font-family: 'Anton', sans-serif;
+    font-size: 16px;
+  }
+
+  .pitch-banner {
+    margin: 18px;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, rgba(255, 77, 46, 0.12), rgba(255, 184, 0, 0.06));
+    border: 1px solid rgba(255, 77, 46, 0.2);
+    border-radius: 14px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .pitch-banner .emoji {
+    font-size: 24px;
+  }
+  .pitch-banner .copy { flex: 1; }
+  .pitch-banner h4 { margin: 0 0 2px; font-size: 13px; font-weight: 700; }
+  .pitch-banner p { margin: 0; font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
+  .demo-notice {
+    text-align: center;
+    padding: 8px 18px;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">R</div>
+      <span>RallyScore</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" aria-label="Search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="Notifications">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span class="dot"></span>
+      </button>
+    </div>
+  </header>
+
+  <main id="page-live" class="page active">
+    <div class="live-hero">
+      <div class="live-meta">
+        <span class="live-pill"><span class="live-dot"></span> Live</span>
+        <span>·</span>
+        <span id="match-time">1h 12min</span>
+        <span>·</span>
+        <span>South Arena</span>
+      </div>
+
+      <div class="scoreboard">
+        <div class="set-info" id="set-info">SET 3 · BEST OF 5</div>
+
+        <div class="teams-row">
+          <div class="team-block">
+            <div class="team-logo home">ME</div>
+            <div class="team-name">Madison Eagles</div>
+            <div class="team-sub">Home</div>
+            <div class="team-sets" id="home-sets">
+              <div class="set-dot won"></div>
+              <div class="set-dot"></div>
+              <div class="set-dot"></div>
+              <div class="set-dot"></div>
+              <div class="set-dot"></div>
+            </div>
+          </div>
+          <div class="vs-divider">VS</div>
+          <div class="team-block">
+            <div class="team-logo away">BS</div>
+            <div class="team-name">Brooklyn Sharks</div>
+            <div class="team-sub">Away</div>
+            <div class="team-sets" id="away-sets">
+              <div class="set-dot won"></div>
+              <div class="set-dot"></div>
+              <div class="set-dot"></div>
+              <div class="set-dot"></div>
+              <div class="set-dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="scores-row">
+          <div class="score-big" id="score-home">18</div>
+          <div class="score-divider">—</div>
+          <div class="score-big" id="score-away">15</div>
+        </div>
+
+        <div class="serve-indicator">
+          <span class="serve-pill serving" id="serve-home"><span class="ball-icon"></span> Serve</span>
+          <span class="serve-pill" id="serve-away"><span class="ball-icon"></span> Serve</span>
+        </div>
+
+        <div class="sets-table">
+          <div class="label">Set</div>
+          <div class="header">1</div>
+          <div class="header">2</div>
+          <div class="header">3</div>
+          <div class="header">4</div>
+          <div class="header">5</div>
+
+          <div class="label">ME</div>
+          <div class="cell" id="home-set-1"></div>
+          <div class="cell" id="home-set-2"></div>
+          <div class="cell" id="home-set-3"></div>
+          <div class="cell" id="home-set-4"></div>
+          <div class="cell" id="home-set-5"></div>
+
+          <div class="label">BS</div>
+          <div class="cell" id="away-set-1"></div>
+          <div class="cell" id="away-set-2"></div>
+          <div class="cell" id="away-set-3"></div>
+          <div class="cell" id="away-set-4"></div>
+          <div class="cell" id="away-set-5"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="match-info">
+      <span class="info-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M5 5l3 3M2 12h4M5 19l3-3M12 22v-4M19 19l-3-3M22 12h-4M19 5l-3 3"/></svg>
+        U18 Women's League
+      </span>
+      <span class="info-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Madison
+      </span>
+      <span class="info-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>
+        82 following
+      </span>
+    </div>
+
+    <div class="demo-bar">
+      <button class="demo-btn primary" id="btn-play">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20"/></svg>
+        Play simulation
+      </button>
+      <button class="demo-btn" id="btn-point">
+        + Home point
+      </button>
+      <button class="demo-btn" id="btn-reset" style="display:none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+        Reset
+      </button>
+    </div>
+    <div class="demo-notice">Demo mode — points are generated automatically</div>
+
+    <div class="section">
+      <h3 class="section-title">Latest points <span class="link">View all</span></h3>
+      <div id="points-feed">
+      </div>
+    </div>
+  </main>
+
+  <main id="page-team" class="page">
+    <div class="team-header">
+      <div class="team-header-row">
+        <div class="team-logo">ME</div>
+        <div>
+          <h2>Madison Eagles</h2>
+          <div class="league">U18 Women's League</div>
+        </div>
+      </div>
+      <div class="team-stats">
+        <div class="stat-box">
+          <div class="stat-num">12</div>
+          <div class="stat-label">Wins</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">3</div>
+          <div class="stat-label">Losses</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">38</div>
+          <div class="stat-label">Sets W</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">2nd</div>
+          <div class="stat-label">League</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs" id="team-tabs">
+      <button class="tab active" data-tab="roster">Roster</button>
+      <button class="tab" data-tab="schedule">Schedule</button>
+      <button class="tab" data-tab="results">Results</button>
+    </div>
+
+    <div class="section">
+      <div id="tab-roster" class="tab-content">
+        <div class="roster-grid">
+          <div class="player-card featured">
+            <div class="player-num">7</div>
+            <div class="player-info">
+              <div class="player-name">Sophia Martinez</div>
+              <div class="player-pos">Outside Hitter · Captain</div>
+            </div>
+          </div>
+          <div class="player-card">
+            <div class="player-num">3</div>
+            <div class="player-info">
+              <div class="player-name">Lucy Romero</div>
+              <div class="player-pos">Setter</div>
+            </div>
+          </div>
+          <div class="player-card">
+            <div class="player-num">9</div>
+            <div class="player-info">
+              <div class="player-name">Carla Vega</div>
+              <div class="player-pos">Middle Blocker</div>
+            </div>
+          </div>
+          <div class="player-card">
+            <div class="player-num">12</div>
+            <div class="player-info">
+              <div class="player-name">Mara Perez</div>
+              <div class="player-pos">Opposite Hitter</div>
+            </div>
+          </div>
+          <div class="player-card">
+            <div class="player-num">5</div>
+            <div class="player-info">
+              <div class="player-name">Ivy Costa</div>
+              <div class="player-pos">Libero</div>
+            </div>
+          </div>
+          <div class="player-card">
+            <div class="player-num">11</div>
+            <div class="player-info">
+              <div class="player-name">Andrea Gil</div>
+              <div class="player-pos">Outside Hitter</div>
+            </div>
+          </div>
+          <div class="player-card">
+            <div class="player-num">14</div>
+            <div class="player-info">
+              <div class="player-name">Paula Nunez</div>
+              <div class="player-pos">Middle Blocker</div>
+            </div>
+          </div>
+          <div class="player-card">
+            <div class="player-num">8</div>
+            <div class="player-info">
+              <div class="player-name">Eva Torres</div>
+              <div class="player-pos">Setter</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-schedule" class="tab-content" style="display:none;">
+        <div class="match-card">
+          <div class="match-date">
+            <div class="match-day">29</div>
+            <div class="match-month">APR</div>
+          </div>
+          <div class="match-body">
+            <div class="match-opponent">vs Brooklyn Sharks</div>
+            <div class="match-meta">Home · 6:00 PM · South Arena</div>
+          </div>
+          <span class="match-tag live">LIVE</span>
+        </div>
+        <div class="match-card">
+          <div class="match-date">
+            <div class="match-day">04</div>
+            <div class="match-month">MAY</div>
+          </div>
+          <div class="match-body">
+            <div class="match-opponent">@ Austin Lions</div>
+            <div class="match-meta">Away · 7:30 PM · Seaside Sports Center</div>
+          </div>
+          <span class="match-tag upcoming">UPCOMING</span>
+        </div>
+        <div class="match-card">
+          <div class="match-date">
+            <div class="match-day">11</div>
+            <div class="match-month">MAY</div>
+          </div>
+          <div class="match-body">
+            <div class="match-opponent">vs Phoenix Falcons</div>
+            <div class="match-meta">Home · 5:00 PM · South Arena</div>
+          </div>
+          <span class="match-tag upcoming">UPCOMING</span>
+        </div>
+        <div class="match-card">
+          <div class="match-date">
+            <div class="match-day">18</div>
+            <div class="match-month">MAY</div>
+          </div>
+          <div class="match-body">
+            <div class="match-opponent">@ Portland Wolves</div>
+            <div class="match-meta">Away · 6:00 PM · North Arena</div>
+          </div>
+          <span class="match-tag upcoming">UPCOMING</span>
+        </div>
+        <div class="match-card">
+          <div class="match-date">
+            <div class="match-day">25</div>
+            <div class="match-month">MAY</div>
+          </div>
+          <div class="match-body">
+            <div class="match-opponent">vs Denver Panthers</div>
+            <div class="match-meta">Home · 5:30 PM · South Arena</div>
+          </div>
+          <span class="match-tag upcoming">UPCOMING</span>
+        </div>
+      </div>
+
+      <div id="tab-results" class="tab-content" style="display:none;">
+        <div class="match-card">
+          <div class="match-date">
+            <div class="match-day">22</div>
+            <div class="match-month">APR</div>
+          </div>
+          <div class="match-body">
+            <div class="match-opponent">vs Portland Wolves</div>
+            <div class="match-meta">Home · Regular Season</div>
+          </div>
+          <div class="match-result"><span class="w">3</span>-1</div>
+        </div>
+        <div class="match-card">
+          <div class="match-date">
+            <div class="match-day">15</div>
+            <div class="match-month">APR</div>
+          </div>
+          <div class="match-body">
+            <div class="match-opponent">@ Phoenix Falcons</div>
+            <div class="match-meta">Away · Regular Season</div>
+          </div>
+          <div class="match-result"><span class="l">1</span>-3</div>
+        </div>
+        <div class="match-card">
+          <div class="match-date">
+            <div class="match-day">08</div>
+            <div class="match-month">APR</div>
+          </div>
+          <div class="match-body">
+            <div class="match-opponent">vs Denver Panthers</div>
+            <div class="match-meta">Home · Regular Season</div>
+          </div>
+          <div class="match-result"><span class="w">3</span>-0</div>
+        </div>
+        <div class="match-card">
+          <div class="match-date">
+            <div class="match-day">01</div>
+            <div class="match-month">APR</div>
+          </div>
+          <div class="match-body">
+            <div class="match-opponent">@ Austin Lions</div>
+            <div class="match-meta">Away · Regular Season</div>
+          </div>
+          <div class="match-result"><span class="w">3</span>-2</div>
+        </div>
+        <div class="match-card">
+          <div class="match-date">
+            <div class="match-day">25</div>
+            <div class="match-month">MAR</div>
+          </div>
+          <div class="match-body">
+            <div class="match-opponent">vs Brooklyn Sharks</div>
+            <div class="match-meta">Home · Regular Season</div>
+          </div>
+          <div class="match-result"><span class="w">3</span>-1</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <main id="page-family" class="page">
+    <div class="featured-card">
+      <div class="featured-head">
+        <div class="featured-avatar">
+          SM
+          <div class="badge">7</div>
+        </div>
+        <div class="featured-info">
+          <div class="featured-tag">★ Following</div>
+          <div class="featured-name">Sophia Martinez</div>
+          <div class="featured-team">#7 · Outside Hitter · Madison Eagles</div>
+        </div>
+      </div>
+      <div class="featured-stats">
+        <div class="stat-box">
+          <div class="stat-num">11</div>
+          <div class="stat-label">Points today</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">3</div>
+          <div class="stat-label">Aces</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">68%</div>
+          <div class="stat-label">Reception +</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" style="padding-top:0;">
+      <h3 class="section-title">Notifications <span class="link">Settings</span></h3>
+      <div class="notif-item">
+        <div class="notif-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+        </div>
+        <div class="notif-body">
+          <div class="notif-text"><strong>Sophia</strong> got her third ace of the match</div>
+          <div class="notif-time">2 min ago · Set 3 · 18-15</div>
+        </div>
+      </div>
+      <div class="notif-item">
+        <div class="notif-icon green">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="notif-body">
+          <div class="notif-text">Madison Eagles <strong>won the first set 25-22</strong></div>
+          <div class="notif-time">38 min ago</div>
+        </div>
+      </div>
+      <div class="notif-item">
+        <div class="notif-icon yellow">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div class="notif-body">
+          <div class="notif-text">New clip available: <strong>Sophia's block</strong></div>
+          <div class="notif-time">45 min ago</div>
+        </div>
+      </div>
+      <div class="notif-item">
+        <div class="notif-icon blue">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="notif-body">
+          <div class="notif-text"><strong>Eagles vs Sharks</strong> starts in 30 min</div>
+          <div class="notif-time">today 5:30 PM</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" style="padding-top:0;">
+      <h3 class="section-title">Highlights <span class="link">View all</span></h3>
+      <div class="highlights">
+        <div class="highlight highlight-bg-1">
+          <div class="highlight-play">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="6 4 20 12 6 20"/></svg>
+          </div>
+          <div class="highlight-info">
+            <div class="highlight-title">Service ace</div>
+            <div class="highlight-meta">Sophia · Set 3</div>
+          </div>
+        </div>
+        <div class="highlight highlight-bg-2">
+          <div class="highlight-play">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="6 4 20 12 6 20"/></svg>
+          </div>
+          <div class="highlight-info">
+            <div class="highlight-title">Double block</div>
+            <div class="highlight-meta">Sophia + Carla</div>
+          </div>
+        </div>
+        <div class="highlight highlight-bg-3">
+          <div class="highlight-play">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="6 4 20 12 6 20"/></svg>
+          </div>
+          <div class="highlight-info">
+            <div class="highlight-title">Quick attack</div>
+            <div class="highlight-meta">Sophia · Set 1</div>
+          </div>
+        </div>
+        <div class="highlight highlight-bg-4">
+          <div class="highlight-play">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="6 4 20 12 6 20"/></svg>
+          </div>
+          <div class="highlight-info">
+            <div class="highlight-title">Float serve</div>
+            <div class="highlight-meta">Sophia · Set 2</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" style="padding-top:0;">
+      <h3 class="section-title">League standings</h3>
+      <div class="standings">
+        <div class="standings-row head">
+          <div></div>
+          <div>Team</div>
+          <div class="standings-num">W</div>
+          <div class="standings-num">L</div>
+          <div class="standings-pts" style="color:var(--text-muted);font-size:10px;font-family:inherit;font-weight:700;">PTS</div>
+        </div>
+        <div class="standings-row">
+          <div class="standings-rank">1</div>
+          <div class="standings-team">Phoenix Falcons</div>
+          <div class="standings-num">14</div>
+          <div class="standings-num">1</div>
+          <div class="standings-pts">42</div>
+        </div>
+        <div class="standings-row mine">
+          <div class="standings-rank">2</div>
+          <div class="standings-team">Madison Eagles</div>
+          <div class="standings-num">12</div>
+          <div class="standings-num">3</div>
+          <div class="standings-pts">36</div>
+        </div>
+        <div class="standings-row">
+          <div class="standings-rank">3</div>
+          <div class="standings-team">Brooklyn Sharks</div>
+          <div class="standings-num">10</div>
+          <div class="standings-num">5</div>
+          <div class="standings-pts">30</div>
+        </div>
+        <div class="standings-row">
+          <div class="standings-rank">4</div>
+          <div class="standings-team">Austin Lions</div>
+          <div class="standings-num">8</div>
+          <div class="standings-num">7</div>
+          <div class="standings-pts">24</div>
+        </div>
+        <div class="standings-row">
+          <div class="standings-rank">5</div>
+          <div class="standings-team">Portland Wolves</div>
+          <div class="standings-num">6</div>
+          <div class="standings-num">9</div>
+          <div class="standings-pts">18</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pitch-banner">
+      <div class="emoji">★</div>
+      <div class="copy">
+        <h4>Family Premium Plan</h4>
+        <p>Auto-generated clips of Sophia, no watermarks and HD download for just $4.99/month</p>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <div class="nav-inner">
+      <button class="nav-btn active" data-page="live">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12a10 10 0 1 0 20 0 10 10 0 1 0-20 0"/><path d="M12 2a14.5 14.5 0 0 1 0 20"/><path d="M12 2a14.5 14.5 0 0 0 0 20"/><path d="M2 12h20"/></svg>
+        Live
+      </button>
+      <button class="nav-btn" data-page="team">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        My Team
+      </button>
+      <button class="nav-btn" data-page="family">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        Following
+      </button>
+    </div>
+  </nav>
+</div>
+
+<script>
+  // Navigation
+  const navButtons = document.querySelectorAll('.nav-btn');
+  const pages = document.querySelectorAll('.page');
+  navButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      navButtons.forEach(b => b.classList.remove('active'));
+      pages.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      const target = btn.dataset.page;
+      document.getElementById('page-' + target).classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  // Tabs (team page)
+  const teamTabs = document.querySelectorAll('#team-tabs .tab');
+  teamTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      teamTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      ['roster', 'schedule', 'results'].forEach(name => {
+        document.getElementById('tab-' + name).style.display = name === tab.dataset.tab ? '' : 'none';
+      });
+    });
+  });
+
+  // Live match state — best of 5, sets to 25 (15 in 5th) with 2-point lead
+  const TEAM_LABELS = { home: 'Madison Eagles', away: 'Brooklyn Sharks' };
+
+  const state = {
+    home: 18,
+    away: 15,
+    setsHistory: [[25, 22], [23, 25]],
+    serving: 'home',
+    auto: false,
+    matchOver: false,
+    points: [
+      { team: 'home', score: '18-15', text: '<strong>Sophia Martinez (#7)</strong> · Service ace', time: '12s ago' },
+      { team: 'away', score: '17-15', text: '<strong>Sharks #11</strong> · Quick attack', time: '45s ago' },
+      { team: 'home', score: '17-14', text: '<strong>Carla Vega (#9)</strong> · Middle block', time: '1 min ago' },
+      { team: 'home', score: '16-14', text: '<strong>Sophia Martinez (#7)</strong> · Outside attack', time: '1 min ago' }
+    ]
+  };
+
+  const playerNames = ['Sophia Martinez', 'Lucy Romero', 'Carla Vega', 'Mara Perez', 'Andrea Gil', 'Paula Nunez', 'Eva Torres'];
+  const playerNumbers = [7, 3, 9, 12, 11, 14, 8];
+  const opponentNames = ['Sharks #4', 'Sharks #6', 'Sharks #11', 'Sharks #13'];
+  const playTypes = ['Service ace', 'Quick attack', 'Middle block', 'Outside attack', 'Float serve', 'Double block', 'Cross-court spike'];
+
+  const setsHome = () => state.setsHistory.filter(([h, a]) => h > a).length;
+  const setsAway = () => state.setsHistory.filter(([h, a]) => a > h).length;
+  const currentSetNumber = () => Math.min(state.setsHistory.length + 1, 5);
+  const setTarget = () => currentSetNumber() === 5 ? 15 : 25;
+
+  function renderSetsTable() {
+    for (let i = 1; i <= 5; i++) {
+      const homeCell = document.getElementById(`home-set-${i}`);
+      const awayCell = document.getElementById(`away-set-${i}`);
+      homeCell.className = 'cell';
+      awayCell.className = 'cell';
+
+      if (i <= state.setsHistory.length) {
+        const [h, a] = state.setsHistory[i - 1];
+        homeCell.textContent = h;
+        awayCell.textContent = a;
+        homeCell.classList.add(h > a ? 'win' : 'lose');
+        awayCell.classList.add(a > h ? 'win' : 'lose');
+      } else if (i === currentSetNumber() && !state.matchOver) {
+        homeCell.textContent = state.home;
+        awayCell.textContent = state.away;
+        homeCell.classList.add('current');
+        awayCell.classList.add('current');
+      } else {
+        homeCell.textContent = '—';
+        awayCell.textContent = '—';
+      }
+    }
+  }
+
+  function updateScoreboard(animateTeam) {
+    document.getElementById('score-home').textContent = state.home;
+    document.getElementById('score-away').textContent = state.away;
+
+    const setInfoEl = document.getElementById('set-info');
+    if (state.matchOver) {
+      const sH = setsHome(), sA = setsAway();
+      const winner = sH > sA ? TEAM_LABELS.home.toUpperCase() : TEAM_LABELS.away.toUpperCase();
+      setInfoEl.textContent = `MATCH FINISHED · ${winner} ${Math.max(sH, sA)}–${Math.min(sH, sA)}`;
+    } else {
+      setInfoEl.textContent = `SET ${currentSetNumber()} · BEST OF 5 · TO ${setTarget()}`;
+    }
+
+    if (animateTeam && (animateTeam === 'home' || animateTeam === 'away')) {
+      const el = document.getElementById('score-' + animateTeam);
+      el.classList.remove('bump');
+      void el.offsetWidth;
+      el.classList.add('bump');
+    }
+
+    const homeDots = document.querySelectorAll('#home-sets .set-dot');
+    const awayDots = document.querySelectorAll('#away-sets .set-dot');
+    const sH = setsHome(), sA = setsAway();
+    homeDots.forEach((d, i) => d.classList.toggle('won', i < sH));
+    awayDots.forEach((d, i) => d.classList.toggle('won', i < sA));
+
+    document.getElementById('serve-home').classList.toggle('serving', state.serving === 'home' && !state.matchOver);
+    document.getElementById('serve-away').classList.toggle('serving', state.serving === 'away' && !state.matchOver);
+
+    renderSetsTable();
+  }
+
+  function renderPoints() {
+    const feed = document.getElementById('points-feed');
+    feed.innerHTML = '';
+    state.points.slice(0, 6).forEach((p, idx) => {
+      const div = document.createElement('div');
+      div.className = 'point-item' + (idx === 0 ? ' new' : '');
+      let scoreInline = '';
+      let scoreClass = '';
+      if (p.team === 'away') scoreClass = 'away';
+      else if (p.team === 'set') scoreInline = ' style="background: rgba(0, 214, 125, 0.15); color: var(--success);"';
+      else if (p.team === 'match') scoreInline = ' style="background: rgba(255, 184, 0, 0.18); color: var(--accent-2);"';
+      div.innerHTML = `
+        <div class="point-score ${scoreClass}"${scoreInline}>${p.score}</div>
+        <div class="point-text">${p.text}</div>
+        <div class="point-time">${p.time}</div>
+      `;
+      feed.appendChild(div);
+    });
+  }
+
+  function endMatch() {
+    state.matchOver = true;
+    const sH = setsHome(), sA = setsAway();
+    const matchWinner = sH > sA ? TEAM_LABELS.home : TEAM_LABELS.away;
+    state.points.unshift({
+      team: 'match',
+      score: 'END',
+      text: `<strong>Match finished</strong> · ${matchWinner} wins ${Math.max(sH, sA)}–${Math.min(sH, sA)}`,
+      time: 'now'
+    });
+
+    if (autoInterval) { clearInterval(autoInterval); autoInterval = null; }
+    state.auto = false;
+
+    const playBtn = do
