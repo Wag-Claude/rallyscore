@@ -5,9 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#0A0E1B" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="RallyScore" />
 <title>RallyScore — Live volleyball for your family</title>
+<script>
+  window.__RALLYSCORE_CONFIG__ = {
+    SUPABASE_URL: 'https://vasmvjhxpgfxitvadndh.supabase.co',
+    SUPABASE_ANON_KEY: 'sb_publishable_vZjergeml_5fTODHt-KApA_hMR2-Y6y',
+  };
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -1331,6 +1338,7 @@
 
   // Live match state — best of 5, sets to 25 (15 in 5th) with 2-point lead
   const TEAM_LABELS = { home: 'Madison Eagles', away: 'Brooklyn Sharks' };
+  window.TEAM_LABELS = TEAM_LABELS; // expose for backend connector module
 
   const state = {
     home: 18,
@@ -1346,6 +1354,7 @@
       { team: 'home', score: '16-14', text: '<strong>Sophia Martinez (#7)</strong> · Outside attack', time: '1 min ago' }
     ]
   };
+  window.state = state; // expose for backend connector module
 
   const playerNames = ['Sophia Martinez', 'Lucy Romero', 'Carla Vega', 'Mara Perez', 'Andrea Gil', 'Paula Nunez', 'Eva Torres'];
   const playerNumbers = [7, 3, 9, 12, 11, 14, 8];
@@ -1445,7 +1454,227 @@
       time: 'now'
     });
 
-    if (autoInterval) { clearInterval(autoInterval); autoInterval = null; }
+    if (window.autoInterval) { clearInterval(window.autoInterval); window.autoInterval = null; }
     state.auto = false;
 
-    const playBtn = do
+    const playBtn = document.getElementById('btn-auto');
+    if (playBtn) {
+      playBtn.classList.remove('playing');
+      playBtn.querySelector('.btn-label').textContent = 'Match over';
+    }
+
+    updateScoreboard();
+    renderPoints();
+  }
+
+  // Initial render
+  updateScoreboard();
+  renderPoints();
+
+  // Expose for the backend connector module below
+  window.updateScoreboard = updateScoreboard;
+  window.renderPoints = renderPoints;
+  window.autoInterval = (typeof autoInterval !== 'undefined') ? autoInterval : null;
+</script>
+
+<!-- ============================================================ -->
+<!-- BACKEND CONNECTION — overrides simulation when a real live  -->
+<!-- match is found in Supabase. Falls back to simulation gracefully -->
+<!-- ============================================================ -->
+<script type="module">
+  import {
+    supabase, getUser, getProfile, isBackendConfigured,
+    getLiveMatches, getMatchPoints, getMatchSets, subscribeToMatch,
+    subscribeToNotifications, hasProAccess, signOut, onAuthChange
+  } from '../src/supabase-client.js';
+  import { requireAuth, openPaywall, openSignInModal } from '../src/auth-ui.js';
+
+  // Wrap everything in an async IIFE so we can `return` early without
+  // hitting the "Illegal return statement" syntax error at module top level.
+  await (async () => {
+    if (!isBackendConfigured) return;
+
+    let liveSub = null;
+    let liveMatch = null;
+    let isProUser = false;
+
+  // ---- 1. Hydrate user + Pro status ----
+  async function hydrateUser() {
+    const user = await getUser();
+    if (!user) return;
+    isProUser = await hasProAccess();
+
+    // Add a small profile pill in the topbar
+    const topbar = document.querySelector('.topbar');
+    if (topbar && !document.getElementById('rs-profile-pill')) {
+      const pill = document.createElement('div');
+      pill.id = 'rs-profile-pill';
+      pill.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);';
+      pill.innerHTML = `
+        <span style="width:6px;height:6px;border-radius:50%;background:${isProUser ? '#FFB800' : '#00D67D'};box-shadow:0 0 8px ${isProUser ? '#FFB800' : '#00D67D'};"></span>
+        ${isProUser ? 'PRO' : 'Free'} · ${user.email.split('@')[0]}
+      `;
+      topbar.appendChild(pill);
+    }
+  }
+
+  // ---- 2. Find the most recent live match in Supabase ----
+  async function findAndAttachLiveMatch() {
+    const live = await getLiveMatches();
+    if (!live.length) {
+      // No real live match — keep simulation running
+      return;
+    }
+    liveMatch = live[0];
+
+    // Stop the simulator
+    if (window.autoInterval) { clearInterval(window.autoInterval); window.autoInterval = null; }
+    if (window.state) window.state.auto = false;
+
+    // Replace the labels in the UI with real team names
+    const homeLabel = document.querySelector('.score-row.home .team-name');
+    const awayLabel = document.querySelector('.score-row.away .team-name');
+    if (homeLabel) homeLabel.textContent = liveMatch.home_team_name;
+    if (awayLabel) awayLabel.textContent = liveMatch.away_team_name;
+    if (window.TEAM_LABELS) {
+      window.TEAM_LABELS.home = liveMatch.home_team_name;
+      window.TEAM_LABELS.away = liveMatch.away_team_name;
+    }
+
+    // Apply the current score
+    applyMatchSnapshot(liveMatch);
+
+    // Load the recent points feed
+    const points = await getMatchPoints(liveMatch.id, 8);
+    if (window.state && points.length) {
+      window.state.points = points.map(p => ({
+        team: p.team,
+        score: `${p.home_score_after}-${p.away_score_after}`,
+        text: p.player_name
+          ? `<strong>${p.player_name}</strong> · ${p.play_type || 'point'}`
+          : `${p.team === 'home' ? liveMatch.home_team_name : liveMatch.away_team_name} · point`,
+        time: timeAgo(p.scored_at),
+      }));
+      window.renderPoints?.();
+    }
+
+    // Subscribe to live updates
+    liveSub = subscribeToMatch(liveMatch.id, {
+      onMatchUpdate: (m) => {
+        liveMatch = { ...liveMatch, ...m };
+        applyMatchSnapshot(liveMatch);
+      },
+      onPointScored: (p) => {
+        if (!window.state) return;
+        window.state.home = p.home_score_after;
+        window.state.away = p.away_score_after;
+        window.state.points.unshift({
+          team: p.team,
+          score: `${p.home_score_after}-${p.away_score_after}`,
+          text: p.player_name
+            ? `<strong>${p.player_name}</strong> · ${p.play_type || 'point'}`
+            : `${p.team === 'home' ? liveMatch.home_team_name : liveMatch.away_team_name} · point`,
+          time: 'just now',
+        });
+        if (window.state.points.length > 20) window.state.points.pop();
+        window.updateScoreboard?.(p.team);
+        window.renderPoints?.();
+      },
+      onSetCompleted: (s) => {
+        if (!window.state) return;
+        const winner = s.winner === 'home' ? liveMatch.home_team_name : liveMatch.away_team_name;
+        window.state.points.unshift({
+          team: 'set',
+          score: 'SET',
+          text: `<strong>Set ${s.set_number}</strong> · ${winner} wins ${s.home_score}-${s.away_score}`,
+          time: 'just now',
+        });
+        window.renderPoints?.();
+      },
+    });
+  }
+
+  function applyMatchSnapshot(m) {
+    if (!window.state) return;
+    window.state.home = m.home_score;
+    window.state.away = m.away_score;
+    window.state.serving = m.serving;
+    // Reconstruct setsHistory from match_sets (we have it cached on m.home_sets / away_sets, plus we'll fetch detail when needed)
+    window.updateScoreboard?.();
+  }
+
+  function timeAgo(iso) {
+    const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (sec < 5) return 'just now';
+    if (sec < 60) return sec + 's ago';
+    if (sec < 3600) return Math.floor(sec / 60) + ' min ago';
+    return Math.floor(sec / 3600) + 'h ago';
+  }
+
+  // ---- 3. Notifications subscription ----
+  async function attachNotifications() {
+    const user = await getUser();
+    if (!user) return;
+    subscribeToNotifications(user.id, (n) => {
+      // Lightweight in-app toast
+      const t = document.createElement('div');
+      t.style.cssText = `
+        position:fixed;top:80px;left:50%;transform:translateX(-50%);
+        background:linear-gradient(135deg,#FF4D2E,#FF8A00);color:white;
+        padding:10px 16px;border-radius:999px;
+        font-family:'Inter',sans-serif;font-size:13px;font-weight:600;
+        box-shadow:0 10px 30px rgba(255,77,46,0.35);z-index:1000;
+        animation:slideIn 0.3s ease-out;
+      `;
+      t.textContent = '🔔 ' + n.title;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    });
+  }
+
+  // ---- 4. Hook upgrade-related buttons to the paywall ----
+  function bindUpgradeButtons() {
+    document.querySelectorAll('[data-upgrade], .premium-btn, .premium-cta').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const user = await getUser();
+        if (!user) {
+          await openSignInModal({ title: 'Sign in to upgrade', subtitle: "We'll send a magic link to your email." });
+          return;
+        }
+        if (await hasProAccess()) {
+          // Already pro — go to account
+          location.href = 'account.html';
+          return;
+        }
+        await openPaywall({ feature: 'real-time match updates and live broadcasts' });
+      });
+    });
+  }
+
+  // ---- 5. Boot ----
+  await hydrateUser();
+  bindUpgradeButtons();
+  await findAndAttachLiveMatch();
+  await attachNotifications();
+
+  // React to auth changes
+  onAuthChange(async (user, event) => {
+    if (event === 'SIGNED_IN') {
+      location.reload(); // simplest: re-hydrate everything
+    } else if (event === 'SIGNED_OUT') {
+      const pill = document.getElementById('rs-profile-pill');
+      if (pill) pill.remove();
+    }
+  });
+
+  // Cleanup
+  window.addEventListener('pagehide', () => {
+    if (liveSub) liveSub();
+  });
+  })(); // end of async IIFE
+</script>
+
+</body>
+</html>

@@ -5,9 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#0A0E1B" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="RallyScore Pro" />
 <title>RallyScore Pro — Live broadcast viewer</title>
+<script>
+  window.__RALLYSCORE_CONFIG__ = {
+    SUPABASE_URL: 'https://vasmvjhxpgfxitvadndh.supabase.co',
+    SUPABASE_ANON_KEY: 'sb_publishable_vZjergeml_5fTODHt-KApA_hMR2-Y6y',
+  };
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -848,11 +855,27 @@
 
 <div class="toast" id="toast"></div>
 
-<script>
-  const $ = (id) => document.getElementById(id);
-  let videoStream = null;
+<script type="module">
+  import {
+    supabase, getMatch, getMatchPoints, getMatchSets, subscribeToMatch,
+    isBackendConfigured, showAuthBanner, getUser
+  } from '../src/supabase-client.js';
+  import { LiveViewer } from '../src/webrtc-live.js';
+  import { showToast as toast } from '../src/auth-ui.js';
 
-  // Toast helper
+  if (!isBackendConfigured) showAuthBanner();
+
+  const $ = (id) => document.getElementById(id);
+
+  // === State ===
+  let matchId = new URL(location.href).searchParams.get('match');
+  let liveViewer = null;
+  let unsubscribeMatch = null;
+  let currentMatch = null;
+  let usingFallbackCamera = false; // true = old demo mode (own camera as placeholder)
+  let videoStream = null;          // for fallback only
+
+  // === Toast ===
   function showToast(msg) {
     const t = $('toast');
     t.textContent = msg;
@@ -861,39 +884,145 @@
     t._timer = setTimeout(() => t.classList.remove('show'), 2200);
   }
 
-  // Start the live stream — request camera as the demo's "live source"
+  // === Auto-pick the most recent live match if none specified ===
+  async function findLiveMatch() {
+    if (matchId) {
+      const m = await getMatch(matchId);
+      if (m) return m;
+    }
+    if (isBackendConfigured) {
+      const { data: liveMatches } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('status', 'live')
+        .order('stream_started_at', { ascending: false })
+        .limit(1);
+      if (liveMatches?.[0]) return liveMatches[0];
+    }
+    return null;
+  }
+
+  // === Load match metadata into the UI ===
+  function applyMatchToUI(match) {
+    if (!match) return;
+    currentMatch = match;
+    matchId = match.id;
+
+    $('mini-home-score').textContent = match.home_score;
+    $('mini-away-score').textContent = match.away_score;
+
+    // Update team names in mini score and start overlay
+    const home = match.home_team_name || 'Home';
+    const away = match.away_team_name || 'Away';
+    document.querySelectorAll('.mini-score-row').forEach((row, i) => {
+      const nameEl = row.querySelector('.mini-team-name');
+      if (nameEl) nameEl.textContent = i === 0 ? home : away;
+    });
+    $('start-overlay').querySelector('.start-sub').textContent =
+      `${home} vs ${away} · Set ${match.current_set || 1} · You're a verified family member`;
+
+    // Set dots
+    const fmt = match.format === 'best_of_5' ? 5 : 3;
+    const setsToWin = Math.ceil(fmt / 2);
+    const homeSetsEl = $('mini-home-sets');
+    const awaySetsEl = $('mini-away-sets');
+    if (homeSetsEl && awaySetsEl) {
+      homeSetsEl.innerHTML = ''; awaySetsEl.innerHTML = '';
+      for (let i = 0; i < setsToWin; i++) {
+        homeSetsEl.innerHTML += '<div class="mini-set-dot"></div>';
+        awaySetsEl.innerHTML += '<div class="mini-set-dot"></div>';
+      }
+      const homeDots = homeSetsEl.children, awayDots = awaySetsEl.children;
+      for (let i = 0; i < homeDots.length; i++) {
+        homeDots[i].classList.toggle('won', i < match.home_sets);
+        awayDots[i].classList.toggle('won', i < match.away_sets);
+      }
+    }
+
+    // Serving indicator
+    const servingEl = document.querySelector('.serving-pill');
+    if (servingEl) {
+      const initials = match.serving === 'home'
+        ? (home.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase())
+        : (away.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase());
+      servingEl.innerHTML = `<span style="font-size:11px;">●</span> ${initials} serving`;
+    }
+  }
+
+  // === Start live (real WebRTC) ===
   async function startLive() {
     const overlay = $('start-overlay');
     overlay.style.opacity = '0.6';
 
-    try {
-      // Try rear camera first (more natural for "watching the court")
-      const constraints = {
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
-      };
-      let stream;
+    // 1. Find an active match
+    const match = await findLiveMatch();
+    if (!match) {
+      // No live match — fall back to camera demo so the page still works
+      return startCameraFallback();
+    }
+
+    applyMatchToUI(match);
+
+    // 2. Subscribe to scoreboard updates via Supabase Realtime
+    unsubscribeMatch = subscribeToMatch(match.id, {
+      onMatchUpdate: (m) => applyMatchToUI(m),
+      onPointScored: (p) => onPointScored(p),
+      onSetCompleted: (s) => showToast(`Set ${s.set_number} → ${s.winner === 'home' ? match.home_team_name : match.away_team_name} ${s.home_score}-${s.away_score}`),
+      onChatMessage: (msg) => addRealChat(msg),
+    });
+
+    // 3. Connect WebRTC viewer to broadcaster
+    if (isBackendConfigured) {
       try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (rearErr) {
-        // Fallback to front camera
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        liveViewer = new LiveViewer(match.id);
+        liveViewer.onConnectionChange((state) => {
+          if (state === 'connected') showToast('Connected to broadcaster');
+          if (state === 'failed') {
+            showToast('Connection failed — try refreshing');
+            startCameraFallback();
+          }
+        });
+        const v = $('video-el');
+        await liveViewer.start(v);
+        v.style.display = 'block';
+        $('placeholder').style.display = 'none';
+        revealLiveUI();
+
+        // Increment viewer count on the match (optional — the RPC function
+        // may not exist yet; we don't want to crash if it's missing).
+        try {
+          await supabase.rpc('increment_viewer_count', { p_match_id: match.id });
+        } catch (rpcErr) {
+          // Non-critical — function might not be defined yet
+        }
+      } catch (err) {
+        console.warn('WebRTC viewer failed:', err);
+        return startCameraFallback();
       }
+    } else {
+      return startCameraFallback();
+    }
+  }
+
+  // Fallback when no live broadcast is available — uses local camera as placeholder
+  async function startCameraFallback() {
+    usingFallbackCamera = true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } }, audio: false
+      }).catch(() => navigator.mediaDevices.getUserMedia({ video: true, audio: false }));
       videoStream = stream;
       const v = $('video-el');
       v.srcObject = stream;
       v.style.display = 'block';
       $('placeholder').style.display = 'none';
       revealLiveUI();
+      showToast('No live broadcast — showing demo mode');
     } catch (err) {
-      // Camera unavailable / permission denied → fall back to placeholder
       $('placeholder').innerHTML = '<div>Camera unavailable<br/><span style="color: var(--text-dim); font-size: 11px;">Showing placeholder for demo</span></div>';
-      $('placeholder').style.background =
-        'radial-gradient(circle at 30% 20%, rgba(255, 184, 0, 0.18), transparent 50%),' +
-        'radial-gradient(circle at 70% 80%, rgba(77, 141, 255, 0.18), transparent 50%),' +
-        'linear-gradient(180deg, #1B2138, #0A0E1B)';
       revealLiveUI();
-      showToast('Camera blocked — showing demo overlay');
+      // Run the simulation so the demo still shows the overlay
+      startSimulation();
     }
   }
 
@@ -901,10 +1030,109 @@
     $('start-overlay').classList.add('hidden');
     $('overlay-top').style.display = 'flex';
     $('overlay-side').style.display = 'flex';
-    startSimulation();
   }
 
-  // Reactions
+  // === Real point handler — called when a scorer adds a point in the broadcaster ===
+  function onPointScored(point) {
+    // Update mini score (the match update will too, but this gives a faster bump)
+    const team = point.team;
+    const el = $('mini-' + team + '-score');
+    el.textContent = team === 'home' ? point.home_score_after : point.away_score_after;
+    el.classList.remove('up');
+    void el.offsetWidth;
+    el.classList.add('up');
+
+    // Spawn a flurry of cheers
+    const e = ambientEmojis[Math.floor(Math.random() * ambientEmojis.length)];
+    for (let i = 0; i < 3 + Math.random() * 4; i++) {
+      setTimeout(() => spawnCheer(e), i * 80);
+    }
+
+    // Add a highlight card
+    addHighlightFromPoint(point);
+
+    // Notification toast for points by attributed players
+    if (point.player_name) {
+      showToast(`${point.player_name} · ${point.play_type || 'point'}`);
+    }
+  }
+
+  function addHighlightFromPoint(point) {
+    const playLabel = point.play_type
+      ? point.play_type[0].toUpperCase() + point.play_type.slice(1)
+      : 'Point';
+    const playIcon = ({
+      ace: '⚡', block: '🛡️', attack: '💥', kill: '💥', dig: '🤲', spike: '💥', set: '🎯'
+    })[point.play_type] || '🏐';
+    const playerLabel = point.player_name
+      ? point.player_name
+      : (point.team === 'home' ? 'Home team' : 'Away team');
+    const setNum = point.set_number || 1;
+
+    const div = document.createElement('div');
+    div.className = 'highlight-card';
+    div.innerHTML = `
+      <div class="highlight-thumb ${point.team === 'away' ? 'away' : ''}">
+        ${playIcon}
+        <div class="play-ico">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="6 4 20 12 6 20"/></svg>
+        </div>
+      </div>
+      <div class="highlight-info">
+        <div class="highlight-title">${playLabel} · ${playerLabel}</div>
+        <div class="highlight-sub">Set ${setNum} · ${point.home_score_after}-${point.away_score_after} · Auto-clipped</div>
+      </div>
+      <div class="highlight-time">just now</div>
+    `;
+    $('hl-feed').insertBefore(div, $('hl-feed').firstChild);
+    while ($('hl-feed').children.length > 10) {
+      $('hl-feed').removeChild($('hl-feed').lastChild);
+    }
+    const c = $('hl-count');
+    c.textContent = parseInt(c.textContent, 10) + 1;
+  }
+
+  // === Real chat handler ===
+  async function addRealChat(msg) {
+    if (msg.is_reaction) {
+      // It's just an emoji
+      spawnCheer(msg.emoji);
+      return;
+    }
+    const initials = (msg.user_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const colors = ['#FF4D2E,#C41A00','#4D8DFF,#1E5FCC','#00D67D,#007A47','#FFB800,#C47800'];
+    const color = colors[Math.abs(hashStr(msg.user_id || msg.user_name)) % colors.length];
+
+    const div = document.createElement('div');
+    div.className = 'chat-msg';
+    div.innerHTML = `
+      <div class="chat-avatar" style="background: linear-gradient(135deg, ${color});">${initials}</div>
+      <div class="chat-body">
+        <div class="chat-head">
+          <span class="chat-name">${msg.user_name || 'Family'}</span>
+          <span class="chat-tag">Family</span>
+          <span class="chat-time">now</span>
+        </div>
+        <div class="chat-text">${escapeHTML(msg.message)}</div>
+      </div>
+    `;
+    $('chat-feed').insertBefore(div, $('chat-feed').firstChild);
+    while ($('chat-feed').children.length > 8) {
+      $('chat-feed').removeChild($('chat-feed').lastChild);
+    }
+  }
+
+  function hashStr(s) {
+    let h = 0;
+    for (let i = 0; i < (s||'').length; i++) h = (h*31 + s.charCodeAt(i)) | 0;
+    return h;
+  }
+
+  function escapeHTML(s) {
+    return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // === Reactions (now broadcast to all viewers via Supabase) ===
   const reactCounts = { '❤️': 142, '🔥': 87, '👏': 63, '🏐': 31, '⭐': 22 };
   const cntMap = { '❤️': 'cnt-heart', '🔥': 'cnt-fire', '👏': 'cnt-clap', '🏐': 'cnt-ball', '⭐': 'cnt-star' };
 
@@ -913,7 +1141,7 @@
     const el = document.createElement('div');
     el.className = 'cheer-emoji';
     el.textContent = emoji;
-    const offset = (Math.random() * 60) + 20; // right offset
+    const offset = (Math.random() * 60) + 20;
     el.style.right = offset + 'px';
     el.style.fontSize = (24 + Math.random() * 14) + 'px';
     layer.appendChild(el);
@@ -925,7 +1153,26 @@
   }
 
   document.querySelectorAll('.react-btn').forEach(btn => {
-    btn.addEventListener('click', () => spawnCheer(btn.dataset.emoji));
+    btn.addEventListener('click', async () => {
+      const emoji = btn.dataset.emoji;
+      spawnCheer(emoji);
+      // Broadcast to other viewers
+      if (currentMatch && isBackendConfigured) {
+        const user = await getUser();
+        if (user) {
+          try {
+            await supabase.from('chat_messages').insert({
+              match_id: currentMatch.id,
+              user_id: user.id,
+              user_name: user.email?.split('@')[0] || 'Family',
+              message: emoji,
+              is_reaction: true,
+              emoji,
+            });
+          } catch (_) { /* non-critical */ }
+        }
+      }
+    });
   });
 
   // Tabs
@@ -938,7 +1185,7 @@
     });
   });
 
-  // Mute / unmute (the video is muted because there's no audio track in demo, but pretend)
+  // Mute / unmute
   let muted = true;
   $('btn-mute').addEventListener('click', () => {
     muted = !muted;
@@ -960,18 +1207,17 @@
   });
 
   $('btn-cam').addEventListener('click', () => showToast('Switch camera → would toggle court vs bench cam'));
-  $('btn-replay').addEventListener('click', () => showToast('DVR rewind to last point — Pro only'));
+  $('btn-replay').addEventListener('click', () => showToast('DVR rewind to last point'));
   $('btn-clip').addEventListener('click', () => {
     showToast('Clip saved to your highlights');
-    // Bump highlight count visually
     const c = $('hl-count');
     c.textContent = parseInt(c.textContent, 10) + 1;
   });
   $('btn-start').addEventListener('click', startLive);
 
-  // Simulate score updates + ambient cheers + chat
-  let viewers = 82;
-  let homeScore = 18, awayScore = 15;
+  // === Backwards-compatible simulation (only if no real match is found) ===
+  let simIntervals = [];
+  let simHomeScore = 18, simAwayScore = 15;
 
   const ambientEmojis = ['❤️', '🔥', '👏', '🏐', '⭐'];
   function ambientCheer() {
@@ -983,12 +1229,9 @@
     { name: 'Olivia D.', initials: 'OD', color: '#FF4D2E,#C41A00', text: 'Sofia is on fire 🔥' },
     { name: 'Marcus P.', initials: 'MP', color: '#4D8DFF,#1E5FCC', text: 'Great rotation by the Eagles' },
     { name: 'Jenna F.', initials: 'JF', color: '#00D67D,#007A47', text: 'That set was tight!' },
-    { name: 'Ahmed K.', initials: 'AK', color: '#FFB800,#C47800', text: 'Carla\'s blocks are unreal' },
+    { name: 'Ahmed K.', initials: 'AK', color: '#FFB800,#C47800', text: "Carla's blocks are unreal" },
     { name: 'Maya S.', initials: 'MS', color: '#FF4D2E,#FFB800', text: 'Sending good vibes from work 💪' },
-    { name: 'Tyler J.', initials: 'TJ', color: '#4D8DFF,#FF4D2E', text: 'Coach has them dialed in' },
-    { name: 'Priya N.', initials: 'PN', color: '#00D67D,#FF4D2E', text: 'Eagles take the lead!' }
   ];
-
   function addMockChat() {
     const m = mockChats[Math.floor(Math.random() * mockChats.length)];
     const div = document.createElement('div');
@@ -1005,105 +1248,45 @@
       </div>
     `;
     $('chat-feed').insertBefore(div, $('chat-feed').firstChild);
-    // Trim feed
     while ($('chat-feed').children.length > 8) {
       $('chat-feed').removeChild($('chat-feed').lastChild);
     }
   }
 
-  const playerNames = ['Sophia (#7)', 'Carla (#9)', 'Lucy (#3)', 'Mara (#12)', 'Andrea (#11)'];
-  const playTypes = [
-    { icon: '⚡', label: 'Service ace' },
-    { icon: '🛡️', label: 'Middle block' },
-    { icon: '💥', label: 'Cross-court spike' },
-    { icon: '🎯', label: 'Quick attack' },
-    { icon: '🏐', label: 'Float serve' }
-  ];
-
-  function addHighlight(team) {
-    const player = team === 'home'
-      ? playerNames[Math.floor(Math.random() * playerNames.length)]
-      : 'Sharks #' + ([4, 6, 11, 13][Math.floor(Math.random() * 4)]);
-    const play = playTypes[Math.floor(Math.random() * playTypes.length)];
-    const div = document.createElement('div');
-    div.className = 'highlight-card';
-    div.innerHTML = `
-      <div class="highlight-thumb ${team === 'away' ? 'away' : ''}">
-        ${play.icon}
-        <div class="play-ico">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="6 4 20 12 6 20"/></svg>
-        </div>
-      </div>
-      <div class="highlight-info">
-        <div class="highlight-title">${play.label} · ${player}</div>
-        <div class="highlight-sub">Set 3 · ${homeScore}-${awayScore} · Auto-clipped</div>
-      </div>
-      <div class="highlight-time">0:0${5 + Math.floor(Math.random() * 6)}</div>
-    `;
-    $('hl-feed').insertBefore(div, $('hl-feed').firstChild);
-    while ($('hl-feed').children.length > 10) {
-      $('hl-feed').removeChild($('hl-feed').lastChild);
-    }
-    const c = $('hl-count');
-    c.textContent = parseInt(c.textContent, 10) + 1;
-  }
-
-  function bumpScore(team) {
-    if (team === 'home') homeScore++; else awayScore++;
+  function simBumpScore(team) {
+    if (team === 'home') simHomeScore++; else simAwayScore++;
     const el = $('mini-' + team + '-score');
-    el.textContent = team === 'home' ? homeScore : awayScore;
-    el.classList.remove('up');
-    void el.offsetWidth;
-    el.classList.add('up');
-
-    // Spawn cheer flurry on point
+    el.textContent = team === 'home' ? simHomeScore : simAwayScore;
+    el.classList.remove('up'); void el.offsetWidth; el.classList.add('up');
     const e = ambientEmojis[Math.floor(Math.random() * ambientEmojis.length)];
-    for (let i = 0; i < 3 + Math.random() * 4; i++) {
-      setTimeout(() => spawnCheer(e), i * 80);
-    }
-    // Add a highlight every now and then
-    if (Math.random() < 0.4) addHighlight(team);
-  }
-
-  function bumpViewers() {
-    viewers += Math.random() < 0.7 ? 1 : -1;
-    viewers = Math.max(40, Math.min(viewers, 220));
-    $('viewers-count').textContent = viewers;
-  }
-
-  function fluctuateNetwork() {
-    const r = Math.random();
-    const bars = $('net-bars');
-    const label = $('net-label');
-    bars.classList.remove('fair', 'poor');
-    if (r < 0.7) {
-      label.textContent = 'HD';
-    } else if (r < 0.92) {
-      bars.classList.add('fair');
-      label.textContent = '720p';
-    } else {
-      bars.classList.add('poor');
-      label.textContent = 'SD';
-    }
+    for (let i = 0; i < 3 + Math.random() * 4; i++) setTimeout(() => spawnCheer(e), i * 80);
   }
 
   function startSimulation() {
-    // Ambient cheers
-    setInterval(ambientCheer, 1400);
-    // Score updates
-    setInterval(() => bumpScore(Math.random() < 0.55 ? 'home' : 'away'), 4500);
-    // Viewer count drift
-    setInterval(bumpViewers, 1800);
-    // Mock chat
-    setInterval(addMockChat, 5500);
-    // Network fluctuations
-    setInterval(fluctuateNetwork, 9000);
+    simIntervals.push(setInterval(ambientCheer, 1400));
+    simIntervals.push(setInterval(() => simBumpScore(Math.random() < 0.55 ? 'home' : 'away'), 4500));
+    simIntervals.push(setInterval(addMockChat, 5500));
   }
 
-  // Cleanup on page hide
-  window.addEventListener('pagehide', () => {
+  function stopSimulation() {
+    simIntervals.forEach(clearInterval);
+    simIntervals = [];
+  }
+
+  // === Cleanup ===
+  window.addEventListener('pagehide', async () => {
+    stopSimulation();
     if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+    if (liveViewer) await liveViewer.stop();
+    if (unsubscribeMatch) unsubscribeMatch();
   });
+
+  // === Pre-fetch and render existing match state on load (so refresh keeps state) ===
+  (async () => {
+    if (!isBackendConfigured) return;
+    const m = await findLiveMatch();
+    if (m) applyMatchToUI(m);
+  })();
 </script>
 </body>
 </html>

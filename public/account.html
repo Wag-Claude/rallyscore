@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0A0E1B" />
+<title>RallyScore — My account</title>
+<script>
+  window.__RALLYSCORE_CONFIG__ = {
+    SUPABASE_URL: 'https://vasmvjhxpgfxitvadndh.supabase.co',
+    SUPABASE_ANON_KEY: 'sb_publishable_vZjergeml_5fTODHt-KApA_hMR2-Y6y',
+  };
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0E1B; --bg-elev: #131829; --bg-elev-2: #1B2138;
+    --border: #232A45; --text: #F4F6FB; --text-muted: #8A93AD; --text-dim: #5A6280;
+    --accent: #FF4D2E; --accent-2: #FFB800; --success: #00D67D; --info: #4D8DFF;
+    --gradient: linear-gradient(135deg, #FF4D2E 0%, #FF8A00 100%);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 540px; margin: 0 auto; padding: 32px 20px 60px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+  .brand-mark { width: 42px; height: 42px; border-radius: 12px; background: var(--gradient); display: grid; place-items: center; font-family: 'Anton', sans-serif; font-size: 22px; color: #fff; box-shadow: 0 8px 18px rgba(255,77,46,0.4); }
+  h1 { margin: 0; font-size: 22px; font-weight: 800; }
+  .back-link { color: var(--text-muted); text-decoration: none; font-size: 13px; }
+  .card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 16px; padding: 22px; margin-bottom: 14px; }
+  .card-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 700; margin-bottom: 12px; }
+  .row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .row:last-child { border-bottom: 0; }
+  .label { color: var(--text-muted); font-size: 13px; }
+  .value { font-weight: 600; font-size: 14px; }
+  .badge { padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+  .badge.pro { background: rgba(255,184,0,0.15); color: var(--accent-2); border: 1px solid rgba(255,184,0,0.3); }
+  .badge.free { background: rgba(0,214,125,0.15); color: var(--success); border: 1px solid rgba(0,214,125,0.3); }
+  button.primary { background: var(--gradient); color: white; border: 0; padding: 13px 18px; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 8px 18px rgba(255,77,46,0.3); width: 100%; font-family: inherit; }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 12px 18px; border-radius: 12px; font-weight: 600; font-size: 13px; cursor: pointer; width: 100%; font-family: inherit; margin-top: 8px; }
+  .empty { text-align: center; padding: 32px 16px; color: var(--text-muted); font-size: 13px; }
+  .success-banner { background: rgba(0,214,125,0.12); border: 1px solid rgba(0,214,125,0.3); color: var(--success); padding: 14px; border-radius: 12px; margin-bottom: 18px; font-size: 13px; }
+  .nav-tabs { display: flex; gap: 6px; padding: 4px; background: var(--bg-elev); border-radius: 12px; margin-bottom: 14px; border: 1px solid var(--border); }
+  .nav-tab { flex: 1; padding: 10px; text-align: center; font-size: 12px; font-weight: 600; color: var(--text-muted); border-radius: 8px; cursor: pointer; }
+  .nav-tab.active { background: var(--bg-elev-2); color: var(--text); }
+  .signed-out { text-align: center; padding: 40px 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="brand-mark">R</a>
+    <div style="flex:1">
+      <h1>My account</h1>
+      <a href="index.html" class="back-link">← Back to hub</a>
+    </div>
+  </header>
+
+  <div id="success-banner" class="success-banner" style="display:none">
+    ✓ Subscription confirmed — welcome to Pro!
+  </div>
+
+  <div id="signed-out" class="card signed-out" style="display:none">
+    <div style="font-size:36px;margin-bottom:12px">👋</div>
+    <h2 style="margin:0 0 6px;font-size:18px">Sign in to RallyScore</h2>
+    <p style="color:var(--text-muted);font-size:13px;margin:0 0 18px">Track followed players, manage your subscription, and view match history.</p>
+    <button class="primary" id="btn-signin">Sign in with email</button>
+  </div>
+
+  <div id="signed-in" style="display:none">
+    <div class="card">
+      <div class="card-title">Profile</div>
+      <div class="row"><span class="label">Email</span><span class="value" id="user-email">—</span></div>
+      <div class="row"><span class="label">Member since</span><span class="value" id="user-joined">—</span></div>
+      <div class="row"><span class="label">Plan</span><span id="plan-badge" class="badge free">Free</span></div>
+    </div>
+
+    <div class="card" id="sub-card" style="display:none">
+      <div class="card-title">Subscription</div>
+      <div class="row"><span class="label">Status</span><span class="value" id="sub-status">—</span></div>
+      <div class="row"><span class="label">Trial ends</span><span class="value" id="sub-trial">—</span></div>
+      <div class="row"><span class="label">Next renewal</span><span class="value" id="sub-renewal">—</span></div>
+    </div>
+
+    <div class="card" id="upgrade-card" style="display:none">
+      <div class="card-title">Upgrade to Pro</div>
+      <p style="color:var(--text-muted);font-size:13px;line-height:1.5;margin:0 0 14px">Watch live broadcasts, get notifications when your kid scores, and access auto-clipped highlights.</p>
+      <button class="primary" id="btn-upgrade">Start 7-day free trial</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Followed players</div>
+      <div id="follows-list">
+        <div class="empty">You're not following any players yet</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Recent matches</div>
+      <div id="matches-list">
+        <div class="empty">Match history will appear here</div>
+      </div>
+    </div>
+
+    <button class="ghost" id="btn-signout">Sign out</button>
+  </div>
+</div>
+
+<script type="module">
+  import {
+    supabase, getUser, getProfile, getActiveSubscription,
+    getFollowedPlayers, signOut, isBackendConfigured
+  } from '../src/supabase-client.js';
+  import { openSignInModal, openPaywall } from '../src/auth-ui.js';
+
+  // Show success banner if redirected from Stripe
+  if (new URL(location.href).searchParams.get('checkout') === 'success') {
+    document.getElementById('success-banner').style.display = 'block';
+    setTimeout(() => document.getElementById('success-banner').style.display = 'none', 6000);
+  }
+
+  if (!isBackendConfigured) {
+    document.body.innerHTML = '<div style="padding:40px;text-align:center;color:#FF4D2E">Backend not configured. See setup docs.</div>';
+  }
+
+  async function render() {
+    const user = await getUser();
+    if (!user) {
+      document.getElementById('signed-out').style.display = 'block';
+      document.getElementById('signed-in').style.display = 'none';
+      return;
+    }
+    document.getElementById('signed-out').style.display = 'none';
+    document.getElementById('signed-in').style.display = 'block';
+
+    const profile = await getProfile();
+    document.getElementById('user-email').textContent = user.email;
+    if (profile) {
+      const joined = new Date(profile.created_at);
+      document.getElementById('user-joined').textContent = joined.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+    }
+
+    const sub = await getActiveSubscription();
+    if (sub) {
+      document.getElementById('plan-badge').className = 'badge pro';
+      document.getElementById('plan-badge').textContent = sub.tier === 'family' ? 'Pro Family' : 'Pro Club';
+      document.getElementById('sub-card').style.display = 'block';
+      document.getElementById('sub-status').textContent = sub.status[0].toUpperCase() + sub.status.slice(1);
+      document.getElementById('sub-trial').textContent = sub.trial_end
+        ? new Date(sub.trial_end).toLocaleDateString()
+        : '—';
+      document.getElementById('sub-renewal').textContent = sub.current_period_end
+        ? new Date(sub.current_period_end).toLocaleDateString()
+        : '—';
+    } else {
+      document.getElementById('upgrade-card').style.display = 'block';
+    }
+
+    // Render followed players
+    const follows = await getFollowedPlayers(user.id);
+    const list = document.getElementById('follows-list');
+    if (follows.length) {
+      list.innerHTML = follows.map(f => {
+        const p = f.player || {};
+        const t = p.team || {};
+        return `
+          <div class="row">
+            <div>
+              <div class="value">${p.full_name || 'Player'} ${p.jersey_number ? '#' + p.jersey_number : ''}</div>
+              <div class="label" style="font-size:12px">${t.name || ''}</div>
+            </div>
+            <span class="badge ${f.is_verified ? 'pro' : 'free'}">${f.is_verified ? '✓ Verified' : 'Pending'}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Recent matches
+    const { data: recent } = await supabase
+      .from('matches').select('*')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (recent && recent.length) {
+      const ml = document.getElementById('matches-list');
+      ml.innerHTML = recent.map(m => `
+        <div class="row" style="cursor:pointer" onclick="location.href='viewer.html?match=${m.id}'">
+          <div>
+            <div class="value">${m.home_team_name} vs ${m.away_team_name}</div>
+            <div class="label" style="font-size:12px">${new Date(m.created_at).toLocaleString()}</div>
+          </div>
+          <span class="badge ${m.status === 'live' ? 'pro' : 'free'}">${m.status}</span>
+        </div>
+      `).join('');
+    }
+  }
+
+  document.getElementById('btn-signin').addEventListener('click', async () => {
+    await openSignInModal();
+  });
+
+  document.getElementById('btn-signout').addEventListener('click', async () => {
+    await signOut();
+    location.reload();
+  });
+
+  document.getElementById('btn-upgrade').addEventListener('click', async () => {
+    await openPaywall({ feature: 'live broadcasts and player notifications' });
+  });
+
+  render();
+
+  // React to auth changes
+  supabase.auth.onAuthStateChange(() => render());
+</script>
+</body>
+</html>

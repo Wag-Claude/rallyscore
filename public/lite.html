@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#0A0E1B" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="RallyScore Lite" />
 <title>RallyScore Lite — Universal Scoreboard</title>
@@ -641,7 +642,57 @@
       <div class="winner-score" id="winner-score">2 — 0</div>
       <div class="match-over-actions">
         <button class="match-over-btn primary" id="btn-rematch">New match</button>
+        <button class="match-over-btn" id="btn-export">Export PDF</button>
         <button class="match-over-btn" id="btn-keep">Keep on screen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div class="match-over" id="settings-modal" style="display:none;">
+    <div class="match-over-card" style="max-width:340px">
+      <div style="font-size:28px;margin-bottom:6px">⚙️</div>
+      <div class="winner-label">SETTINGS</div>
+      <div style="height:14px"></div>
+
+      <div style="text-align:left;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Volleyball — sets to win</div>
+        <div style="display:flex;gap:6px">
+          <button class="match-over-btn settings-chip" data-vb-bestof="3" style="flex:1">Best of 3</button>
+          <button class="match-over-btn settings-chip" data-vb-bestof="5" style="flex:1">Best of 5</button>
+        </div>
+      </div>
+
+      <div style="text-align:left;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Volleyball — points per set</div>
+        <div style="display:flex;gap:6px">
+          <button class="match-over-btn settings-chip" data-vb-target="21" style="flex:1">21</button>
+          <button class="match-over-btn settings-chip" data-vb-target="25" style="flex:1">25</button>
+        </div>
+      </div>
+
+      <div style="text-align:left;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Basketball — quarter length</div>
+        <div style="display:flex;gap:6px">
+          <button class="match-over-btn settings-chip" data-bb-clock="480" style="flex:1">8 min</button>
+          <button class="match-over-btn settings-chip" data-bb-clock="600" style="flex:1">10 min</button>
+          <button class="match-over-btn settings-chip" data-bb-clock="720" style="flex:1">12 min</button>
+        </div>
+      </div>
+
+      <div style="text-align:left;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Soccer — half length</div>
+        <div style="display:flex;gap:6px">
+          <button class="match-over-btn settings-chip" data-sc-clock="1500" style="flex:1">25 min</button>
+          <button class="match-over-btn settings-chip" data-sc-clock="2700" style="flex:1">45 min</button>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:6px">
+        <div class="match-over-actions">
+          <button class="match-over-btn primary" id="btn-settings-save">Save</button>
+          <button class="match-over-btn" id="btn-settings-close">Cancel</button>
+        </div>
       </div>
     </div>
   </div>
@@ -802,7 +853,9 @@
     const clockEl = $('clock');
     if (!cfg.hasClock) {
       clockEl.classList.add('hidden');
-      stopClock();
+      // Only stop the interval; do NOT call renderClock again (would recurse).
+      if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
+      clockRunning = false;
       return;
     }
     clockEl.classList.remove('hidden');
@@ -859,7 +912,18 @@
   function stopClock() {
     if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
     clockRunning = false;
-    renderClock();
+    // Update the clock UI directly without re-entering renderClock when the
+    // sport has no clock (which would recurse infinitely).
+    const cfg = sportCfg();
+    const clockEl = $('clock');
+    if (cfg.hasClock) {
+      const m = Math.floor(clockSeconds / 60).toString().padStart(2, '0');
+      const s = (clockSeconds % 60).toString().padStart(2, '0');
+      clockEl.textContent = `${m}:${s}`;
+      clockEl.classList.remove('running');
+    } else if (clockEl) {
+      clockEl.classList.add('hidden');
+    }
   }
 
   // Actions
@@ -1048,17 +1112,245 @@
   $('home-name').addEventListener('blur', e => { if (!e.target.value) e.target.value = state.homeName; });
   $('away-name').addEventListener('blur', e => { if (!e.target.value) e.target.value = state.awayName; });
   $('upgrade-banner').addEventListener('click', () => {
-    showToast('Upgrade flow → would open in real app');
+    // Saves the current match to localStorage and links to Pro signup
+    saveMatchSnapshot();
+    location.href = 'app.html?upgrade=lite';
   });
   $('ad-banner').addEventListener('click', () => {
     showToast('Ad tap → would open advertiser link');
   });
+
+  // ============================================================
+  // SETTINGS — persisted in localStorage
+  // ============================================================
+  const SETTINGS_KEY = 'rallyscore_lite_settings_v1';
+  const STATE_KEY = 'rallyscore_lite_state_v1';
+  const MATCH_HISTORY_KEY = 'rallyscore_lite_history_v1';
+
+  const DEFAULT_SETTINGS = {
+    vbBestOf: 3,
+    vbTarget: 25,
+    bbClock: 600,
+    scClock: 2700,
+  };
+
+  let settings = loadSettings();
+
+  function loadSettings() {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return { ...DEFAULT_SETTINGS };
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    } catch { return { ...DEFAULT_SETTINGS }; }
+  }
+  function persistSettings() {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {}
+  }
+  function applySettingsToSports() {
+    SPORTS.volleyball.periodMax = settings.vbBestOf;
+    SPORTS.volleyball.target = settings.vbTarget;
+    SPORTS.basketball.clockStart = settings.bbClock;
+    SPORTS.soccer.clockMax = settings.scClock;
+    // Re-render set dots if currently in volleyball
+    const homeDots = $('home-sets');
+    const awayDots = $('away-sets');
+    if (homeDots && awayDots) {
+      const setsToShow = Math.ceil(settings.vbBestOf / 2);
+      // (We keep 3 dots in HTML; they map to setsToWin)
+      // Just ensure the count visualizer is right via state
+    }
+  }
+  applySettingsToSports();
+
+  function refreshSettingsUI() {
+    document.querySelectorAll('.settings-chip').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('[data-vb-bestof]').forEach(c => {
+      if (parseInt(c.dataset.vbBestof, 10) === settings.vbBestOf) c.classList.add('selected');
+    });
+    document.querySelectorAll('[data-vb-target]').forEach(c => {
+      if (parseInt(c.dataset.vbTarget, 10) === settings.vbTarget) c.classList.add('selected');
+    });
+    document.querySelectorAll('[data-bb-clock]').forEach(c => {
+      if (parseInt(c.dataset.bbClock, 10) === settings.bbClock) c.classList.add('selected');
+    });
+    document.querySelectorAll('[data-sc-clock]').forEach(c => {
+      if (parseInt(c.dataset.scClock, 10) === settings.scClock) c.classList.add('selected');
+    });
+  }
+
+  // Style for selected chips (injected once)
+  (function injectChipStyle() {
+    const s = document.createElement('style');
+    s.textContent = `
+      .settings-chip.selected { background: var(--gradient) !important; border-color: transparent !important; color: white !important; }
+      .settings-chip { transition: all 0.15s; font-weight: 600; font-size: 13px; }
+    `;
+    document.head.appendChild(s);
+  })();
+
   $('btn-settings').addEventListener('click', () => {
-    showToast('Settings → team colors, clock duration, etc.');
+    refreshSettingsUI();
+    $('settings-modal').style.display = 'grid';
+    $('settings-modal').classList.add('active');
+  });
+  $('btn-settings-close').addEventListener('click', () => {
+    $('settings-modal').classList.remove('active');
+    $('settings-modal').style.display = 'none';
+  });
+  document.querySelectorAll('.settings-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      // Mutually exclusive within each group
+      const groupKeys = ['vbBestof','vbTarget','bbClock','scClock'];
+      groupKeys.forEach(k => {
+        if (chip.dataset[k] !== undefined) {
+          document.querySelectorAll(`[data-${k.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())}]`).forEach(c => c.classList.remove('selected'));
+          chip.classList.add('selected');
+        }
+      });
+    });
+  });
+  $('btn-settings-save').addEventListener('click', () => {
+    const sel = (sel) => document.querySelector(`.settings-chip.selected[${sel}]`);
+    const vb = sel('data-vb-bestof');
+    const vt = sel('data-vb-target');
+    const bb = sel('data-bb-clock');
+    const sc = sel('data-sc-clock');
+    if (vb) settings.vbBestOf = parseInt(vb.dataset.vbBestof, 10);
+    if (vt) settings.vbTarget = parseInt(vt.dataset.vbTarget, 10);
+    if (bb) settings.bbClock = parseInt(bb.dataset.bbClock, 10);
+    if (sc) settings.scClock = parseInt(sc.dataset.scClock, 10);
+    persistSettings();
+    applySettingsToSports();
+    setupClockForCurrentSport();
+    render();
+    showToast('Settings saved');
+    $('settings-modal').classList.remove('active');
+    $('settings-modal').style.display = 'none';
   });
 
-  // Init
+  // ============================================================
+  // STATE PERSISTENCE — restore on reload
+  // ============================================================
+  function persistState() {
+    try {
+      localStorage.setItem(STATE_KEY, JSON.stringify({
+        sport: activeSport,
+        state,
+        clockSeconds,
+        ts: Date.now(),
+      }));
+    } catch {}
+  }
+  function restoreState() {
+    try {
+      const raw = localStorage.getItem(STATE_KEY);
+      if (!raw) return false;
+      const saved = JSON.parse(raw);
+      if (!saved || !saved.state) return false;
+      // Only restore if less than 24 hours old
+      if (Date.now() - (saved.ts || 0) > 24 * 60 * 60 * 1000) return false;
+      activeSport = saved.sport || 'volleyball';
+      state = saved.state;
+      clockSeconds = saved.clockSeconds || 0;
+      document.getElementById('app').dataset.sport = activeSport;
+      document.querySelectorAll('.sport-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.sport === activeSport);
+      });
+      return true;
+    } catch { return false; }
+  }
+
+  // Auto-save state on every render
+  const originalRender = render;
+  render = function() {
+    originalRender();
+    persistState();
+  };
+
+  // ============================================================
+  // EXPORT — generate a printable summary (uses window.print)
+  // ============================================================
+  function exportMatchPDF() {
+    const sH = setsHome(), sA = setsAway();
+    const winner = activeSport === 'volleyball'
+      ? (sH > sA ? state.homeName : sA > sH ? state.awayName : 'Draw')
+      : (state.home > state.away ? state.homeName : state.away > state.home ? state.awayName : 'Draw');
+    const finalScore = activeSport === 'volleyball'
+      ? `${Math.max(sH, sA)} — ${Math.min(sH, sA)}`
+      : `${state.home} — ${state.away}`;
+    const date = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+    const setsHTML = state.setsHistory.map((s, i) => `<tr><td>Set ${i + 1}</td><td>${s[0]}</td><td>${s[1]}</td><td>${s[0] > s[1] ? state.homeName : state.awayName}</td></tr>`).join('');
+
+    const html = `<!DOCTYPE html><html><head><title>Match Summary — ${state.homeName} vs ${state.awayName}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 700px; margin: 40px auto; padding: 0 24px; color: #1a1a1a; }
+        h1 { font-size: 28px; margin: 0 0 4px; }
+        .sub { color: #666; margin-bottom: 30px; font-size: 14px; }
+        .winner-box { background: linear-gradient(135deg, #FF4D2E, #FF8A00); color: white; padding: 24px; border-radius: 14px; text-align: center; margin: 24px 0; }
+        .winner-name { font-size: 32px; font-weight: 800; margin-bottom: 4px; }
+        .winner-score { font-size: 18px; opacity: 0.92; }
+        .matchup { font-size: 18px; margin-bottom: 18px; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
+        th { background: #f5f5f7; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.06em; }
+        .footer { margin-top: 40px; color: #888; font-size: 11px; text-align: center; }
+      </style></head>
+      <body>
+        <h1>Match Summary</h1>
+        <div class="sub">${SPORTS[activeSport].icon} ${SPORTS[activeSport].name} · ${date}</div>
+        <div class="matchup">${state.homeName} vs ${state.awayName}</div>
+        <div class="winner-box">
+          <div class="winner-name">🏆 ${winner}</div>
+          <div class="winner-score">${finalScore}</div>
+        </div>
+        ${activeSport === 'volleyball' && setsHTML ? `<table><thead><tr><th></th><th>${state.homeName}</th><th>${state.awayName}</th><th>Winner</th></tr></thead><tbody>${setsHTML}</tbody></table>` : ''}
+        <div class="footer">Generated by RallyScore Lite · rallyscore.com</div>
+      </body></html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if (!w) {
+      showToast('Pop-ups blocked — allow them to export');
+      return;
+    }
+    w.onload = () => {
+      try { w.print(); } catch { /* user can use Cmd+P */ }
+    };
+  }
+
+  $('btn-export').addEventListener('click', exportMatchPDF);
+
+  // ============================================================
+  // SAVE FOR PRO — used when user taps "Go Live with Pro"
+  // ============================================================
+  function saveMatchSnapshot() {
+    try {
+      const history = JSON.parse(localStorage.getItem(MATCH_HISTORY_KEY) || '[]');
+      history.unshift({
+        id: 'lite_' + Date.now(),
+        sport: activeSport,
+        homeName: state.homeName,
+        awayName: state.awayName,
+        homeScore: state.home,
+        awayScore: state.away,
+        sets: state.setsHistory,
+        finishedAt: state.matchOver ? new Date().toISOString() : null,
+        savedAt: new Date().toISOString(),
+      });
+      localStorage.setItem(MATCH_HISTORY_KEY, JSON.stringify(history.slice(0, 30)));
+    } catch {}
+  }
+
+  // ============================================================
+  // INIT
+  // ============================================================
   $('btn-undo').disabled = true;
+  // Try to restore previous match
+  const restored = restoreState();
+  if (restored) {
+    showToast('Resumed previous match');
+  }
   setupClockForCurrentSport();
   render();
 </script>

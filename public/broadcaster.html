@@ -5,9 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#0A0E1B" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="RallyScore Broadcast" />
 <title>RallyScore Pro — Broadcaster (Scorer)</title>
+<script>
+  // Boot config — replace placeholders or inject via Vercel build step
+  window.__RALLYSCORE_CONFIG__ = {
+    SUPABASE_URL: 'https://vasmvjhxpgfxitvadndh.supabase.co',
+    SUPABASE_ANON_KEY: 'sb_publishable_vZjergeml_5fTODHt-KApA_hMR2-Y6y',
+  };
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -915,7 +923,15 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+  import {
+    supabase, getUser, isBackendConfigured, scorePoint, undoLastPoint, showAuthBanner
+  } from '../src/supabase-client.js';
+  import { LiveBroadcaster } from '../src/webrtc-live.js';
+  import { requireAuth, showToast as toast } from '../src/auth-ui.js';
+
+  if (!isBackendConfigured) showAuthBanner();
+
   const $ = (id) => document.getElementById(id);
 
   // === State ===
@@ -923,30 +939,21 @@
   let cameraFacing = 'environment';
   let cameraEnabled = false;
   let preflightChecks = { angle: false, light: false, battery: false, net: false };
-  let matchFormat = 3; // best of 3
+  let matchFormat = 3;
   let activeSport = 'volleyball';
   let homeName = 'Madison Eagles';
   let awayName = 'Brooklyn Sharks';
 
-  let matchState = null;
-  let history = [];
+  // Backend / live state
+  let currentMatch = null;        // row from `matches` table
+  let liveBroadcaster = null;     // LiveBroadcaster instance (WebRTC)
+  let unsubMatch = null;          // realtime subscription cleanup
   let timerInterval = null;
-  let viewerInterval = null;
-  let qualityInterval = null;
   let elapsedSeconds = 0;
   let viewers = 0;
-  let selectedPlayer = null;
+  let selectedPlayer = null;      // { id, name, number } from DB or { name, number } locally
 
-  function initMatchState() {
-    return {
-      home: 0, away: 0,
-      setsHistory: [],
-      lastScorer: null,
-      matchOver: false
-    };
-  }
-
-  // === Toast ===
+  // === Toast (delegated to imported helper, but keep local style) ===
   function showToast(msg) {
     const t = $('toast');
     t.textContent = msg;
@@ -997,11 +1004,11 @@
       if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
       const constraints = {
         video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
+        audio: true
       };
       let stream;
       try { stream = await navigator.mediaDevices.getUserMedia(constraints); }
-      catch (err) { stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); }
+      catch (err) { stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); }
       cameraStream = stream;
       $('setup-video').srcObject = stream;
       $('setup-video').style.display = 'block';
@@ -1009,7 +1016,7 @@
       cameraEnabled = true;
       updateGoLiveButton();
     } catch (err) {
-      $('setup-ph').textContent = 'Camera blocked · demo will use placeholder';
+      $('setup-ph').textContent = 'Camera blocked · enable in browser settings';
       cameraEnabled = true; // allow demo to proceed without camera
       updateGoLiveButton();
       showToast('Camera blocked — go live still works for demo');
@@ -1022,10 +1029,59 @@
     if (cameraEnabled) startCamera(cameraFacing);
   });
 
-  // === Go live ===
-  $('btn-go-live').addEventListener('click', () => {
-    runCountdown(() => {
-      transitionToLive();
+  // === Go live (now requires auth + creates a match in the backend) ===
+  $('btn-go-live').addEventListener('click', async () => {
+    // 1. Require authentication (scorer must be logged in)
+    if (isBackendConfigured) {
+      const user = await getUser();
+      if (!user) {
+        await requireAuth({
+          title: 'Sign in to broadcast',
+          subtitle: 'Scorers must sign in so families can verify the match.'
+        });
+        return; // user has to come back from magic link
+      }
+
+      // 2. Create the match row
+      try {
+        const { data: match, error } = await supabase
+          .from('matches')
+          .insert({
+            home_team_name: homeName,
+            away_team_name: awayName,
+            sport: activeSport,
+            format: matchFormat === 5 ? 'best_of_5' : 'best_of_3',
+            status: 'live',
+            scorer_id: user.id,
+            is_live_streaming: true,
+            stream_started_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        currentMatch = match;
+
+        // 3. Update the URL so we can share / reload
+        const url = new URL(window.location.href);
+        url.searchParams.set('match', match.id);
+        history.replaceState(null, '', url.toString());
+
+        // 4. Subscribe to viewer-count updates
+        unsubMatch = supabase
+          .channel(`match-watch:${match.id}`)
+          .on('postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${match.id}` },
+            (p) => { if (p.new.viewer_count !== undefined) updateViewerCount(p.new.viewer_count); })
+          .subscribe();
+      } catch (err) {
+        console.error(err);
+        showToast('Could not create match: ' + err.message);
+        return;
+      }
+    }
+
+    runCountdown(async () => {
+      await transitionToLive();
     });
   });
 
@@ -1061,11 +1117,10 @@
     setTimeout(tick, 1000);
   }
 
-  function transitionToLive() {
+  async function transitionToLive() {
     $('screen-setup').classList.remove('active');
     $('screen-live').classList.add('active');
 
-    // Move video element source to live screen
     const liveVideo = $('live-video');
     const livePh = $('live-ph');
     if (cameraStream) {
@@ -1077,9 +1132,6 @@
       livePh.style.display = 'grid';
     }
 
-    // Initialize match
-    matchState = initMatchState();
-    history = [];
     elapsedSeconds = 0;
     viewers = 0;
     $('home-name').textContent = homeName;
@@ -1096,6 +1148,20 @@
 
     renderMatch();
     startTimers();
+
+    // Start WebRTC broadcast (camera → viewers)
+    if (currentMatch && cameraStream) {
+      try {
+        liveBroadcaster = new LiveBroadcaster(currentMatch.id);
+        // Reuse the already-running stream by attaching it after init
+        liveBroadcaster.localStream = cameraStream;
+        // Subscribe to the signaling channel and announce
+        await liveBroadcaster.start(null); // null = don't restart camera
+        liveBroadcaster.onViewerCountChange(updateViewerCount);
+      } catch (err) {
+        console.warn('WebRTC broadcast not available:', err);
+      }
+    }
   }
 
   function startTimers() {
@@ -1105,50 +1171,34 @@
       const s = (elapsedSeconds % 60).toString().padStart(2, '0');
       $('match-timer').textContent = `${m}:${s}`;
     }, 1000);
+  }
 
-    // Simulate viewers connecting over time
-    viewerInterval = setInterval(() => {
-      if (matchState && !matchState.matchOver) {
-        const target = Math.min(80 + Math.floor(elapsedSeconds / 30) * 6, 200);
-        if (viewers < target) viewers += Math.ceil(Math.random() * 3);
-        else viewers += Math.random() < 0.5 ? 1 : -1;
-        viewers = Math.max(0, viewers);
-        $('viewer-count').textContent = viewers;
-      }
-    }, 1500);
-
-    // Simulate quality fluctuations
-    qualityInterval = setInterval(() => {
-      const r = Math.random();
-      const el = $('live-quality');
-      if (r < 0.7) el.textContent = '720p · 1.4 Mbps';
-      else if (r < 0.92) el.textContent = '720p · 1.0 Mbps';
-      else el.textContent = '480p · 0.6 Mbps';
-    }, 5500);
+  function updateViewerCount(n) {
+    viewers = n;
+    $('viewer-count').textContent = viewers;
   }
 
   function stopTimers() {
     if (timerInterval) clearInterval(timerInterval);
-    if (viewerInterval) clearInterval(viewerInterval);
-    if (qualityInterval) clearInterval(qualityInterval);
   }
 
-  // === Match logic ===
-  const setsHome = () => matchState.setsHistory.filter(([h, a]) => h > a).length;
-  const setsAway = () => matchState.setsHistory.filter(([h, a]) => a > h).length;
-  const currentSetNumber = () => Math.min(matchState.setsHistory.length + 1, matchFormat);
+  // === Match logic — UI mirrors backend, calls server RPC ===
+  // Local cache of the match state for snappy UI
+  let local = {
+    home: 0, away: 0,
+    setsHistory: [],
+    matchOver: false,
+  };
+
+  const setsHome = () => local.setsHistory.filter(([h, a]) => h > a).length;
+  const setsAway = () => local.setsHistory.filter(([h, a]) => a > h).length;
+  const currentSetNumber = () => Math.min(local.setsHistory.length + 1, matchFormat);
   const setTarget = () => currentSetNumber() === matchFormat ? 15 : 25;
   const setsToWin = () => Math.ceil(matchFormat / 2);
 
-  function pushHistory() {
-    history.push(JSON.parse(JSON.stringify(matchState)));
-    if (history.length > 30) history.shift();
-    $('btn-undo').disabled = false;
-  }
-
   function renderMatch() {
-    $('home-score').textContent = matchState.home;
-    $('away-score').textContent = matchState.away;
+    $('home-score').textContent = local.home;
+    $('away-score').textContent = local.away;
     $('set-num').textContent = currentSetNumber();
     $('set-target').textContent = `TO ${setTarget()}`;
 
@@ -1160,8 +1210,8 @@
       awayDots[i].classList.toggle('won', i < sA);
     }
 
-    $('home-plus').classList.toggle('dis', matchState.matchOver);
-    $('away-plus').classList.toggle('dis', matchState.matchOver);
+    $('home-plus').classList.toggle('dis', local.matchOver);
+    $('away-plus').classList.toggle('dis', local.matchOver);
   }
 
   function bumpScore(team) {
@@ -1171,90 +1221,108 @@
     el.classList.add('bump');
   }
 
-  function addPoint(team) {
-    if (matchState.matchOver) return;
-    pushHistory();
-    if (team === 'home') matchState.home++; else matchState.away++;
+  async function addPoint(team) {
+    if (local.matchOver) return;
 
-    let toastMsg;
+    // OPTIMISTIC update — make UI feel instant
+    if (team === 'home') local.home++; else local.away++;
+    bumpScore(team);
+
+    let toastMsg, playerName = null, playerNumber = null;
     if (team === 'home' && selectedPlayer) {
-      const [name, num] = selectedPlayer.split('|');
-      matchState.lastScorer = `#${num} ${name}`;
-      toastMsg = `${homeName} · #${num} ${name}`;
+      playerName = selectedPlayer.name;
+      playerNumber = selectedPlayer.number;
+      toastMsg = `${homeName} · #${playerNumber} ${playerName}`;
       // clear selection
       document.querySelectorAll('.player-chip').forEach(c => c.classList.remove('selected'));
       $('home-attr-label').textContent = 'Attribute';
-      selectedPlayer = null;
-    } else if (team === 'home') {
-      toastMsg = `${homeName} · point`;
     } else {
-      toastMsg = `${awayName} · point`;
+      toastMsg = team === 'home' ? `${homeName} · point` : `${awayName} · point`;
     }
     showToast(toastMsg);
 
-    bumpScore(team);
-    checkSetEnd();
-    renderMatch();
-  }
-
-  function subtractPoint(team) {
-    if (matchState.matchOver) return;
-    pushHistory();
-    if (team === 'home') matchState.home = Math.max(0, matchState.home - 1);
-    else matchState.away = Math.max(0, matchState.away - 1);
-    renderMatch();
-  }
-
-  function checkSetEnd() {
+    // Volleyball set/match end check (locally for snappy UI; backend re-validates)
     const target = setTarget();
-    const reached = matchState.home >= target || matchState.away >= target;
-    const lead = Math.abs(matchState.home - matchState.away) >= 2;
-    if (!reached || !lead) return;
+    const reached = local.home >= target || local.away >= target;
+    const lead = Math.abs(local.home - local.away) >= 2;
+    if (activeSport === 'volleyball' && reached && lead) {
+      const winner = local.home > local.away ? 'home' : 'away';
+      const winnerName = winner === 'home' ? homeName : awayName;
+      const score = `${local.home}-${local.away}`;
+      local.setsHistory.push([local.home, local.away]);
 
-    const winner = matchState.home > matchState.away ? 'home' : 'away';
-    const winnerName = winner === 'home' ? homeName : awayName;
-    const score = `${matchState.home}-${matchState.away}`;
-    matchState.setsHistory.push([matchState.home, matchState.away]);
+      const sH = setsHome(), sA = setsAway();
+      if (sH >= setsToWin() || sA >= setsToWin()) {
+        local.matchOver = true;
+        showMatchEnd();
+      } else {
+        showToast(`Set ${currentSetNumber() - 1} → ${winnerName} ${score}`);
+        local.home = 0;
+        local.away = 0;
+      }
+    }
+    renderMatch();
 
-    showToast(`Set ${currentSetNumber() - 1} → ${winnerName} ${score}`);
+    // Persist to backend (atomic via score_point RPC)
+    if (currentMatch && isBackendConfigured) {
+      try {
+        await scorePoint({
+          matchId: currentMatch.id,
+          team,
+          playerId: selectedPlayer?.id || null,
+          playerName: playerName || (team === 'away' ? awayName : null),
+          playType: null,
+        });
+      } catch (err) {
+        console.error('scorePoint failed:', err);
+        showToast('⚠ Sync failed — point recorded locally');
+      }
+    }
+    selectedPlayer = null;
+  }
 
-    const sH = setsHome(), sA = setsAway();
-    if (sH >= setsToWin() || sA >= setsToWin()) {
-      endMatch();
-    } else {
-      matchState.home = 0;
-      matchState.away = 0;
+  async function subtractPoint(team) {
+    if (local.matchOver) return;
+    if (team === 'home') local.home = Math.max(0, local.home - 1);
+    else local.away = Math.max(0, local.away - 1);
+    renderMatch();
+
+    if (currentMatch && isBackendConfigured) {
+      try { await undoLastPoint(currentMatch.id); }
+      catch (e) { console.warn(e); }
     }
   }
 
   function forceEndSet() {
-    if (matchState.matchOver) return;
-    if (matchState.home === 0 && matchState.away === 0) {
+    if (local.matchOver) return;
+    if (local.home === 0 && local.away === 0) {
       showToast('Set has no points yet');
       return;
     }
-    if (matchState.home === matchState.away) {
+    if (local.home === local.away) {
       showToast('Set must have a winner');
       return;
     }
-    pushHistory();
-    const winner = matchState.home > matchState.away ? 'home' : 'away';
+    const winner = local.home > local.away ? 'home' : 'away';
     const winnerName = winner === 'home' ? homeName : awayName;
-    matchState.setsHistory.push([matchState.home, matchState.away]);
+    local.setsHistory.push([local.home, local.away]);
     showToast(`Set ${currentSetNumber() - 1} → ${winnerName}`);
 
     const sH = setsHome(), sA = setsAway();
     if (sH >= setsToWin() || sA >= setsToWin()) {
-      endMatch();
+      local.matchOver = true;
+      showMatchEnd();
     } else {
-      matchState.home = 0;
-      matchState.away = 0;
+      local.home = 0;
+      local.away = 0;
     }
     renderMatch();
+
+    // TODO: also persist forced set-end to backend
+    // (For now the backend only tracks naturally-ended sets via score_point.)
   }
 
-  function endMatch() {
-    matchState.matchOver = true;
+  function showMatchEnd() {
     stopTimers();
     const sH = setsHome(), sA = setsAway();
     const winner = sH > sA ? homeName : awayName;
@@ -1262,30 +1330,47 @@
     $('me-score').textContent = `${Math.max(sH, sA)} — ${Math.min(sH, sA)}`;
 
     const m = Math.floor(elapsedSeconds / 60);
-    const setBreakdown = matchState.setsHistory.map((s, i) => `Set ${i + 1}: ${s[0]}-${s[1]}`).join('<br/>');
+    const setBreakdown = local.setsHistory.map((s, i) => `Set ${i + 1}: ${s[0]}-${s[1]}`).join('<br/>');
     $('me-stats').innerHTML = `
       <div class="stat-row"><span>Duration</span><span style="color:var(--text);font-weight:700;">${m} min</span></div>
       <div class="stat-row"><span>Peak viewers</span><span style="color:var(--text);font-weight:700;">${viewers}</span></div>
-      <div class="stat-row"><span>Auto-clipped highlights</span><span style="color:var(--text);font-weight:700;">${matchState.setsHistory.length * 6}</span></div>
+      <div class="stat-row"><span>Auto-clipped highlights</span><span style="color:var(--text);font-weight:700;">${local.setsHistory.length * 6}</span></div>
       <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;line-height:1.6;">${setBreakdown}</div>
     `;
     $('match-end').classList.add('active');
   }
 
-  function undo() {
-    if (history.length === 0) return;
-    matchState = history.pop();
-    matchState.matchOver = false;
-    $('match-end').classList.remove('active');
-    if (history.length === 0) $('btn-undo').disabled = true;
-    renderMatch();
+  async function undo() {
+    if (currentMatch && isBackendConfigured) {
+      try {
+        await undoLastPoint(currentMatch.id);
+        // Reload state from backend to be safe
+        const { data: m } = await supabase.from('matches').select('*').eq('id', currentMatch.id).single();
+        const { data: sets } = await supabase.from('match_sets').select('*').eq('match_id', currentMatch.id).order('set_number');
+        if (m) {
+          local.home = m.home_score;
+          local.away = m.away_score;
+          local.matchOver = m.status === 'finished';
+        }
+        if (sets) {
+          local.setsHistory = sets.map(s => [s.home_score, s.away_score]);
+        }
+        renderMatch();
+      } catch (e) {
+        showToast('Undo failed');
+      }
+    } else {
+      // Local fallback
+      if (local.home > 0) local.home--;
+      else if (local.away > 0) local.away--;
+      renderMatch();
+    }
   }
 
   function swap() {
-    pushHistory();
-    [matchState.home, matchState.away] = [matchState.away, matchState.home];
+    [local.home, local.away] = [local.away, local.home];
     [homeName, awayName] = [awayName, homeName];
-    matchState.setsHistory = matchState.setsHistory.map(([h, a]) => [a, h]);
+    local.setsHistory = local.setsHistory.map(([h, a]) => [a, h]);
     $('home-name').textContent = homeName;
     $('away-name').textContent = awayName;
     renderMatch();
@@ -1295,15 +1380,16 @@
   // === Player attribution ===
   document.querySelectorAll('.player-chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      if (selectedPlayer === chip.dataset.player) {
+      const [name, num] = chip.dataset.player.split('|');
+      const sameAsSelected = selectedPlayer && selectedPlayer.name === name && selectedPlayer.number === num;
+      if (sameAsSelected) {
         selectedPlayer = null;
         chip.classList.remove('selected');
         $('home-attr-label').textContent = 'Attribute';
       } else {
         document.querySelectorAll('.player-chip').forEach(c => c.classList.remove('selected'));
         chip.classList.add('selected');
-        selectedPlayer = chip.dataset.player;
-        const [name] = selectedPlayer.split('|');
+        selectedPlayer = { name, number: num, id: chip.dataset.playerId || null };
         $('home-attr-label').textContent = name;
       }
     });
@@ -1320,27 +1406,42 @@
   $('btn-timeout').addEventListener('click', () => showToast('Timeout — clock paused on viewer side'));
   $('home-attribute').addEventListener('click', () => showToast('Tap a number below before scoring'));
   $('btn-end').addEventListener('click', () => {
-    if (confirm('End the broadcast now?')) endMatch();
+    if (confirm('End the broadcast now?')) {
+      local.matchOver = true;
+      showMatchEnd();
+      finalizeMatch();
+    }
   });
-  $('btn-end-broadcast').addEventListener('click', () => {
+
+  async function finalizeMatch() {
+    if (currentMatch && isBackendConfigured) {
+      try {
+        await supabase.from('matches').update({
+          status: 'finished',
+          finished_at: new Date().toISOString(),
+          is_live_streaming: false,
+        }).eq('id', currentMatch.id);
+      } catch (e) { console.warn(e); }
+    }
+  }
+
+  $('btn-end-broadcast').addEventListener('click', async () => {
     if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+    if (liveBroadcaster) await liveBroadcaster.stop();
+    if (unsubMatch) await supabase.removeChannel(unsubMatch);
     showToast('Broadcast saved · highlights ready in 2 min');
-    setTimeout(() => location.reload(), 1500);
+    setTimeout(() => location.href = 'index.html', 1500);
   });
+
   $('btn-new-match').addEventListener('click', () => {
-    matchState = initMatchState();
-    history = [];
-    elapsedSeconds = 0;
-    viewers = 0;
-    $('match-end').classList.remove('active');
-    $('btn-undo').disabled = true;
-    renderMatch();
-    startTimers();
+    location.reload();
   });
 
   // Cleanup
-  window.addEventListener('pagehide', () => {
+  window.addEventListener('pagehide', async () => {
     if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+    if (liveBroadcaster) await liveBroadcaster.stop();
+    if (unsubMatch) await supabase.removeChannel(unsubMatch);
     stopTimers();
   });
 </script>
