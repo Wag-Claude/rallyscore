@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="RallyScore Pro" />
 <title>RallyScore Pro — Live broadcast viewer</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23FF4D2E%22/%3E%3Ctext x=%2250%22 y=%2275%22 font-family=%22Arial Black,sans-serif%22 font-size=%2275%22 font-weight=%22900%22 fill=%22white%22 text-anchor=%22middle%22%3ER%3C/text%3E%3C/svg%3E" />
 <script>
   window.__RALLYSCORE_CONFIG__ = {
     SUPABASE_URL: 'https://vasmvjhxpgfxitvadndh.supabase.co',
@@ -493,7 +494,84 @@
     text-transform: uppercase;
   }
   .chat-time { font-size: 10px; color: var(--text-dim); margin-left: auto; }
-  .chat-text { font-size: 13px; line-height: 1.35; }
+  .chat-text { font-size: 13px; line-height: 1.35; word-wrap: break-word; }
+
+  /* Chat input composer */
+  #chat-input-bar {
+    position: sticky;
+    bottom: 0;
+    background: linear-gradient(to top, var(--bg) 70%, rgba(10, 14, 27, 0));
+    padding: 8px 0 4px;
+    margin-top: 8px;
+    z-index: 5;
+  }
+  .chat-composer {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 4px 4px 4px 14px;
+    transition: border-color 0.15s;
+  }
+  .chat-composer:focus-within {
+    border-color: var(--accent);
+  }
+  .chat-composer input {
+    flex: 1;
+    background: transparent;
+    border: 0; outline: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 10px 0;
+    -webkit-appearance: none;
+  }
+  .chat-composer input::placeholder { color: var(--text-dim); }
+  .chat-composer input:disabled { opacity: 0.5; }
+  #btn-chat-send {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--gradient);
+    color: white;
+    border: 0;
+    display: grid; place-items: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.1s, opacity 0.15s;
+    box-shadow: 0 4px 10px rgba(255, 77, 46, 0.3);
+  }
+  #btn-chat-send:hover { transform: scale(1.05); }
+  #btn-chat-send:disabled {
+    opacity: 0.4; cursor: not-allowed;
+    transform: none; box-shadow: none;
+  }
+  .chat-signin-prompt {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 12px 10px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .chat-signin-prompt button {
+    background: var(--gradient);
+    color: white;
+    border: 0;
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 4px 10px rgba(255, 77, 46, 0.3);
+  }
+  /* Sent-by-me variant: highlight your own messages */
+  .chat-msg.mine {
+    background: rgba(255, 77, 46, 0.08);
+    border-color: rgba(255, 77, 46, 0.25);
+  }
 
   /* Highlight cards */
   .highlight-card {
@@ -578,6 +656,79 @@
     opacity: 1;
     transform: translate(-50%, 0);
   }
+
+  /* ============================================================
+     FX OVERLAY (mirrors broadcaster) — fullscreen text animation
+     ============================================================ */
+  .fx-overlay {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    pointer-events: none;
+    z-index: 9000;
+    opacity: 0;
+  }
+  .fx-overlay.active { animation: fxIn 1.4s ease-out forwards; }
+  .fx-overlay-text {
+    font-family: 'Anton', sans-serif;
+    font-size: clamp(80px, 22vw, 220px);
+    line-height: 0.9;
+    letter-spacing: 0.04em;
+    color: white;
+    text-shadow:
+      0 0 20px rgba(255, 255, 255, 0.7),
+      0 0 40px rgba(255, 184, 0, 0.5),
+      0 8px 0 rgba(0, 0, 0, 0.4);
+    transform: scale(0.4) rotate(-5deg);
+    text-align: center;
+    padding: 0 12px;
+  }
+  .fx-overlay.fx-ace .fx-overlay-text {
+    color: #FFB800;
+    text-shadow: 0 0 20px #FFB800, 0 0 50px #FF8A00, 0 8px 0 rgba(0,0,0,0.4);
+  }
+  .fx-overlay.fx-boom .fx-overlay-text {
+    color: #FF4D2E;
+    text-shadow: 0 0 20px #FF4D2E, 0 0 50px #C41A00, 0 8px 0 rgba(0,0,0,0.4);
+  }
+  .fx-overlay.fx-block .fx-overlay-text {
+    color: #00D67D;
+    text-shadow: 0 0 20px #00D67D, 0 0 50px #007A47, 0 8px 0 rgba(0,0,0,0.4);
+  }
+  .fx-overlay.fx-denied .fx-overlay-text {
+    color: #4D8DFF;
+    text-shadow: 0 0 20px #4D8DFF, 0 0 50px #1E4DBC, 0 8px 0 rgba(0,0,0,0.4);
+  }
+  @keyframes fxIn {
+    0%   { opacity: 0; }
+    8%   { opacity: 1; }
+    20%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  .fx-overlay.active .fx-overlay-text {
+    animation: fxTextPop 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  @keyframes fxTextPop {
+    0%   { transform: scale(0.4) rotate(-5deg); }
+    25%  { transform: scale(1.2) rotate(2deg); }
+    40%  { transform: scale(1) rotate(0deg); }
+    75%  { transform: scale(1.05) rotate(0deg); }
+    100% { transform: scale(1.6) rotate(0deg); opacity: 0; }
+  }
+
+  /* FX mute toggle in topbar */
+  .fx-mute-toggle {
+    background: rgba(0,0,0,0.45);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: white;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 10px; font-weight: 700;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: inherit;
+    margin-left: 6px;
+  }
+  .fx-mute-toggle.muted { opacity: 0.5; }
 </style>
 </head>
 <body>
@@ -596,6 +747,10 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       <span id="viewers-count">82</span>
     </span>
+    <button class="fx-mute-toggle" id="btn-fx-mute" title="Mute sound effects" aria-label="Toggle FX sound">
+      <svg id="fx-mute-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      <span id="fx-mute-label">FX</span>
+    </button>
   </header>
 
   <!-- Pro strip -->
@@ -776,6 +931,29 @@
         </div>
       </div>
     </div>
+
+    <!-- Chat input — composable area for the family -->
+    <div id="chat-input-bar">
+      <div id="chat-signin-prompt" class="chat-signin-prompt" style="display:none">
+        <span>Sign in to chat with the family</span>
+        <button id="btn-chat-signin">Sign in</button>
+      </div>
+      <div id="chat-composer" class="chat-composer">
+        <input
+          id="chat-input"
+          type="text"
+          maxlength="280"
+          placeholder="Send a message to the family..."
+          autocomplete="off"
+        />
+        <button id="btn-chat-send" aria-label="Send">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
   </div>
 
   <div id="tab-highlights" class="tab-content">
@@ -854,11 +1032,14 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="fx-overlay" id="fx-overlay">
+  <div class="fx-overlay-text" id="fx-overlay-text"></div>
+</div>
 
 <script type="module">
   import {
     supabase, getMatch, getMatchPoints, getMatchSets, subscribeToMatch,
-    isBackendConfigured, showAuthBanner, getUser
+    isBackendConfigured, showAuthBanner, getUser, getProfile
   } from './src/supabase-client.js';
   import { LiveViewer } from './src/webrtc-live.js';
   import { showToast as toast } from './src/auth-ui.js';
@@ -970,6 +1151,9 @@
       onSetCompleted: (s) => showToast(`Set ${s.set_number} → ${s.winner === 'home' ? match.home_team_name : match.away_team_name} ${s.home_score}-${s.away_score}`),
       onChatMessage: (msg) => addRealChat(msg),
     });
+
+    // 2b. Subscribe to FX broadcasts (ACE/BOOM/BLOCK/DENIED)
+    subscribeToFxChannel(match.id);
 
     // 3. Connect WebRTC viewer to broadcaster
     if (isBackendConfigured) {
@@ -1175,6 +1359,121 @@
     });
   });
 
+  // ============================================================
+  // CHAT INPUT — send messages to other viewers via Supabase
+  // ============================================================
+  const chatInput = $('chat-input');
+  const chatSendBtn = $('btn-chat-send');
+  const chatComposer = $('chat-composer');
+  const chatSigninPrompt = $('chat-signin-prompt');
+  const chatSigninBtn = $('btn-chat-signin');
+
+  // Show signin prompt if not authenticated; otherwise show composer
+  async function refreshChatComposer() {
+    const user = await getUser();
+    if (user) {
+      chatComposer.style.display = '';
+      chatSigninPrompt.style.display = 'none';
+    } else {
+      chatComposer.style.display = 'none';
+      chatSigninPrompt.style.display = '';
+    }
+  }
+  refreshChatComposer();
+  // Re-evaluate after each auth change
+  supabase.auth.onAuthStateChange(() => refreshChatComposer());
+
+  // Sign-in button inside chat
+  chatSigninBtn?.addEventListener('click', async () => {
+    const { openSignInModal } = await import('./src/auth-ui.js');
+    await openSignInModal({
+      title: 'Sign in to chat',
+      subtitle: "We'll email you a magic link — no password needed.",
+    });
+  });
+
+  // Enable/disable send button based on input
+  function updateSendButton() {
+    const text = chatInput.value.trim();
+    chatSendBtn.disabled = text.length === 0;
+  }
+  chatInput?.addEventListener('input', updateSendButton);
+  updateSendButton();
+
+  // Send the message
+  async function sendChatMessage() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    if (!currentMatch || !isBackendConfigured) {
+      showToast('No active match to chat in');
+      return;
+    }
+    const user = await getUser();
+    if (!user) {
+      refreshChatComposer();
+      return;
+    }
+
+    // Disable while sending
+    chatInput.disabled = true;
+    chatSendBtn.disabled = true;
+    const profile = await getProfile();
+    const displayName = profile?.full_name || user.email?.split('@')[0] || 'Family';
+
+    try {
+      const { error } = await supabase.from('chat_messages').insert({
+        match_id: currentMatch.id,
+        user_id: user.id,
+        user_name: displayName,
+        message: text,
+        is_reaction: false,
+      });
+      if (error) throw error;
+      chatInput.value = '';
+      // Optimistically render — Realtime will also broadcast but having
+      // immediate feedback feels faster.
+      addOwnChat({ user_name: displayName, message: text });
+    } catch (e) {
+      console.error('Chat send failed:', e);
+      showToast('Could not send message');
+    } finally {
+      chatInput.disabled = false;
+      updateSendButton();
+      chatInput.focus();
+    }
+  }
+
+  chatSendBtn?.addEventListener('click', sendChatMessage);
+  chatInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  });
+
+  // Render your own message (locally, before Realtime echo arrives)
+  function addOwnChat({ user_name, message }) {
+    const initials = (user_name || 'You').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const div = document.createElement('div');
+    div.className = 'chat-msg mine';
+    div.innerHTML = `
+      <div class="chat-avatar" style="background: linear-gradient(135deg, #FF4D2E, #FFB800);">${initials}</div>
+      <div class="chat-body">
+        <div class="chat-head">
+          <span class="chat-name">${escapeHTML(user_name)}</span>
+          <span class="chat-tag" style="background:rgba(0,214,125,0.15);color:#00D67D">You</span>
+          <span class="chat-time">now</span>
+        </div>
+        <div class="chat-text">${escapeHTML(message)}</div>
+      </div>
+    `;
+    $('chat-feed').insertBefore(div, $('chat-feed').firstChild);
+    while ($('chat-feed').children.length > 30) {
+      $('chat-feed').removeChild($('chat-feed').lastChild);
+    }
+  }
+
+
   // Tabs
   document.querySelectorAll('#tabs .tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -1273,12 +1572,225 @@
     simIntervals = [];
   }
 
+  // ============================================================
+  // FX RECEIVER — listen for ACE/BOOM/BLOCK/DENIED from broadcaster
+  // ============================================================
+  let fxChannel = null;
+  let fxMuted = (() => {
+    try { return localStorage.getItem('rs_fx_muted') === '1'; }
+    catch { return false; }
+  })();
+  let tone = null;
+  let toneReady = false;
+
+  function refreshMuteUI() {
+    const btn = $('btn-fx-mute');
+    const lbl = $('fx-mute-label');
+    if (!btn) return;
+    btn.classList.toggle('muted', fxMuted);
+    if (lbl) lbl.textContent = fxMuted ? 'FX' : 'FX';
+    btn.title = fxMuted ? 'Sound effects muted — tap to enable' : 'Sound effects on — tap to mute';
+    const icon = $('fx-mute-icon');
+    if (icon) {
+      icon.innerHTML = fxMuted
+        ? '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>'
+        : '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>';
+    }
+  }
+  refreshMuteUI();
+
+  $('btn-fx-mute')?.addEventListener('click', async () => {
+    fxMuted = !fxMuted;
+    try { localStorage.setItem('rs_fx_muted', fxMuted ? '1' : '0'); } catch {}
+    refreshMuteUI();
+    // First click also unlocks audio so future FX can play
+    if (!fxMuted && !toneReady) {
+      await ensureTone();
+    }
+    // If muting, cancel any in-flight voice line
+    if (fxMuted && 'speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch {}
+    }
+  });
+
+  async function ensureTone() {
+    if (toneReady) return tone;
+    if (!tone) {
+      try { tone = await import('https://esm.sh/tone@14.8.49'); }
+      catch (e) { console.warn('Tone.js load failed:', e); return null; }
+    }
+    try { await tone.start(); toneReady = true; }
+    catch (e) { console.warn('Tone.start failed:', e); }
+    return tone;
+  }
+
+  function playFxSound(fx) {
+    if (fxMuted || !tone || !toneReady) return;
+    const now = tone.now();
+    switch (fx) {
+      case 'ace': {
+        const synth = new tone.Synth({
+          oscillator: { type: 'sawtooth' },
+          envelope: { attack: 0.005, decay: 0.2, sustain: 0.0, release: 0.2 }
+        }).toDestination();
+        synth.volume.value = -8;
+        synth.triggerAttackRelease('C5', '16n', now);
+        synth.triggerAttackRelease('E5', '16n', now + 0.08);
+        synth.triggerAttackRelease('G5', '8n', now + 0.16);
+        synth.triggerAttackRelease('C6', '4n', now + 0.28);
+        setTimeout(() => synth.dispose(), 1500);
+        break;
+      }
+      case 'boom': {
+        const kick = new tone.MembraneSynth({
+          pitchDecay: 0.06, octaves: 6,
+          envelope: { attack: 0.001, decay: 0.4, sustain: 0, release: 0.4 }
+        }).toDestination();
+        kick.volume.value = -4;
+        kick.triggerAttackRelease('C2', '4n', now);
+        const crash = new tone.MetalSynth({
+          frequency: 250,
+          envelope: { attack: 0.001, decay: 0.5, release: 0.2 },
+          harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5
+        }).toDestination();
+        crash.volume.value = -18;
+        crash.triggerAttackRelease('16n', now + 0.05);
+        setTimeout(() => { kick.dispose(); crash.dispose(); }, 1500);
+        break;
+      }
+      case 'block': {
+        const synth = new tone.Synth({
+          oscillator: { type: 'square' },
+          envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.1 }
+        }).toDestination();
+        synth.volume.value = -10;
+        synth.triggerAttackRelease('G3', '16n', now);
+        synth.triggerAttackRelease('G3', '16n', now + 0.06);
+        synth.triggerAttackRelease('B3', '16n', now + 0.12);
+        synth.triggerAttackRelease('D4', '8n', now + 0.18);
+        const bass = new tone.MembraneSynth({
+          pitchDecay: 0.04, octaves: 4,
+          envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.3 }
+        }).toDestination();
+        bass.volume.value = -8;
+        bass.triggerAttackRelease('F1', '8n', now);
+        setTimeout(() => { synth.dispose(); bass.dispose(); }, 1500);
+        break;
+      }
+      case 'denied': {
+        const synth = new tone.Synth({
+          oscillator: { type: 'sawtooth' },
+          envelope: { attack: 0.01, decay: 0.4, sustain: 0.2, release: 0.3 }
+        }).toDestination();
+        synth.volume.value = -8;
+        synth.triggerAttackRelease('A4', '8n', now);
+        synth.triggerAttackRelease('G4', '8n', now + 0.18);
+        synth.triggerAttackRelease('F4', '4n', now + 0.36);
+        setTimeout(() => synth.dispose(), 1500);
+        break;
+      }
+    }
+  }
+
+  // ============================================================
+  // VOICE LINES — Web Speech API with pitch/rate per FX
+  // ============================================================
+  const FX_VOICES = {
+    ace:    { text: 'Ace!',           pitch: 1.6, rate: 1.25, volume: 1.0, delay: 60 },
+    boom:   { text: 'Boom!',          pitch: 0.7, rate: 1.0,  volume: 1.0, delay: 80 },
+    block:  { text: 'Monster block!', pitch: 0.2, rate: 0.65, volume: 1.0, delay: 60 },
+    denied: { text: 'Denied!',        pitch: 0.4, rate: 0.85, volume: 1.0, delay: 100 },
+  };
+
+  let preferredVoice = null;
+  function pickPreferredVoice() {
+    if (!('speechSynthesis' in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return null;
+    const preferences = [
+      v => v.lang.startsWith('en') && /Google.*US.*Male/i.test(v.name),
+      v => v.lang.startsWith('en') && /Daniel|Alex|Fred|Aaron|Arthur/i.test(v.name),
+      v => v.lang.startsWith('en') && /Male/i.test(v.name),
+      v => v.lang.startsWith('en-US'),
+      v => v.lang.startsWith('en'),
+      v => true,
+    ];
+    for (const pref of preferences) {
+      const match = voices.find(pref);
+      if (match) return match;
+    }
+    return null;
+  }
+  if ('speechSynthesis' in window) {
+    preferredVoice = pickPreferredVoice();
+    window.speechSynthesis.addEventListener('voiceschanged', () => {
+      preferredVoice = pickPreferredVoice();
+    });
+  }
+
+  function speakFx(fx) {
+    if (fxMuted) return; // respect mute toggle
+    if (!('speechSynthesis' in window)) return;
+    const cfg = FX_VOICES[fx];
+    if (!cfg) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(cfg.text);
+      if (preferredVoice) utter.voice = preferredVoice;
+      utter.pitch = cfg.pitch;
+      utter.rate = cfg.rate;
+      utter.volume = cfg.volume;
+      setTimeout(() => {
+        try { window.speechSynthesis.speak(utter); }
+        catch (_) {/* no-op */}
+      }, cfg.delay);
+    } catch (e) {
+      console.warn('speakFx failed:', e);
+    }
+  }
+
+  function showFxOverlay(fx, label) {
+    const overlay = $('fx-overlay');
+    const text = $('fx-overlay-text');
+    overlay.className = 'fx-overlay';
+    void overlay.offsetWidth;
+    text.textContent = label || fx.toUpperCase();
+    overlay.classList.add('active', 'fx-' + fx);
+    setTimeout(() => {
+      overlay.classList.remove('active', 'fx-' + fx);
+    }, 1500);
+  }
+
+  async function handleFxEvent({ fx, label }) {
+    showFxOverlay(fx, label);
+    if (!fxMuted) {
+      // Lazy-load Tone on first FX so muted viewers don't pay the cost
+      await ensureTone();
+      playFxSound(fx);
+      speakFx(fx);
+    }
+  }
+
+  function subscribeToFxChannel(matchId) {
+    if (fxChannel) {
+      supabase.removeChannel(fxChannel);
+    }
+    fxChannel = supabase.channel(`fx:${matchId}`, {
+      config: { broadcast: { self: false, ack: false } }
+    });
+    fxChannel.on('broadcast', { event: 'fx' }, ({ payload }) => {
+      handleFxEvent(payload || {});
+    });
+    fxChannel.subscribe();
+  }
+
   // === Cleanup ===
   window.addEventListener('pagehide', async () => {
     stopSimulation();
     if (videoStream) videoStream.getTracks().forEach(t => t.stop());
     if (liveViewer) await liveViewer.stop();
     if (unsubscribeMatch) unsubscribeMatch();
+    if (fxChannel) await supabase.removeChannel(fxChannel);
   });
 
   // === Pre-fetch and render existing match state on load (so refresh keeps state) ===

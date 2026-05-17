@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="RallyScore Broadcast" />
 <title>RallyScore Pro — Broadcaster (Scorer)</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23FF4D2E%22/%3E%3Ctext x=%2250%22 y=%2275%22 font-family=%22Arial Black,sans-serif%22 font-size=%2275%22 font-weight=%22900%22 fill=%22white%22 text-anchor=%22middle%22%3ER%3C/text%3E%3C/svg%3E" />
 <script>
   // Boot config — replace placeholders or inject via Vercel build step
   window.__RALLYSCORE_CONFIG__ = {
@@ -697,6 +698,422 @@
     color: #fff;
     box-shadow: 0 8px 20px rgba(255, 77, 46, 0.4);
   }
+
+  /* ============================================================
+     COMPACT LIVE LAYOUT — video grande, scoreboard mini, FX, chat
+     ============================================================ */
+  .screen#screen-live.active {
+    display: flex !important;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  /* Top bar — compact */
+  #screen-live .live-top {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    padding-top: calc(8px + var(--safe-top));
+  }
+
+  /* VIDEO — takes the most space */
+  #screen-live .live-cam {
+    flex: 1 1 auto;
+    min-height: 200px;
+    margin: 6px 8px;
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    background: #000;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+  #screen-live .live-cam video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  #screen-live .live-cam .live-cam-overlay {
+    position: absolute; top: 8px; left: 8px; right: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+    pointer-events: none;
+  }
+
+  /* MINI SCOREBOARD — one line */
+  .mini-board {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--bg-elev);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .mini-side {
+    display: flex; align-items: center;
+    min-width: 0;
+  }
+  .mini-side.home { justify-content: flex-start; }
+  .mini-side.away { justify-content: flex-end; }
+  .mini-team-name {
+    font-weight: 800; font-size: 13px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .mini-team-name.home { color: var(--home); }
+  .mini-team-name.away { color: var(--away); }
+  .mini-sets {
+    display: inline-flex; gap: 3px;
+    margin-left: 6px; flex-shrink: 0;
+  }
+  .mini-sets.right { margin-left: 0; margin-right: 6px; order: -1; }
+  .mini-set-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+  }
+  .mini-set-dot.won.home { background: var(--home); }
+  .mini-set-dot.won.away { background: var(--away); }
+  .mini-center {
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'Anton', sans-serif;
+    font-size: 32px;
+    line-height: 1;
+  }
+  .mini-score {
+    min-width: 36px; text-align: center;
+    transition: transform 0.3s;
+  }
+  .mini-score.home { color: var(--home); }
+  .mini-score.away { color: var(--away); }
+  .mini-score.bump {
+    animation: scoreBump 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .mini-dash {
+    color: var(--text-dim);
+    font-size: 24px;
+    margin: 0 2px;
+  }
+  .mini-set-info {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-size: 10px; font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-top: 2px;
+  }
+  .mini-set-info .serve-indicator {
+    display: inline-block;
+    color: var(--accent-2);
+    margin-left: 6px;
+  }
+
+  /* FX BUTTONS — special effects */
+  .fx-row {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--bg);
+  }
+  .fx-btn {
+    border: 0;
+    padding: 10px 4px;
+    border-radius: 10px;
+    font-family: 'Anton', sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    color: white;
+    cursor: pointer;
+    transition: transform 0.1s, filter 0.15s;
+    text-transform: uppercase;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+    position: relative;
+    overflow: hidden;
+    line-height: 1.1;
+  }
+  .fx-btn:active { transform: scale(0.92); filter: brightness(1.2); }
+  .fx-btn.ace {
+    background: linear-gradient(135deg, #FFB800, #FF8A00);
+  }
+  .fx-btn.boom {
+    background: linear-gradient(135deg, #FF4D2E, #C41A00);
+  }
+  .fx-btn.block {
+    background: linear-gradient(135deg, #00D67D, #00794A);
+  }
+  .fx-btn.denied {
+    background: linear-gradient(135deg, #4D8DFF, #1E4DBC);
+  }
+  .fx-btn .fx-emoji {
+    display: block; font-size: 18px; margin-bottom: 2px;
+    font-family: 'Inter', sans-serif;
+  }
+  .fx-btn.cooldown {
+    opacity: 0.5; pointer-events: none;
+  }
+
+  /* CHAT PREVIEW — bottom strip with last 2-3 messages */
+  .chat-strip {
+    flex: 0 0 auto;
+    max-height: 70px;
+    overflow: hidden;
+    padding: 6px 12px;
+    background: var(--bg-elev);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .chat-strip-empty {
+    color: var(--text-dim);
+    font-size: 11px;
+    text-align: center;
+    padding: 4px;
+    font-style: italic;
+  }
+  .chat-line {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 1px 0;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .chat-line .who {
+    color: var(--accent-2);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .chat-line .msg {
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .chat-line.new {
+    animation: chatLineIn 0.3s ease;
+  }
+  @keyframes chatLineIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* COMPACT SCORE CONTROLS — replaces the big team panels */
+  .score-row {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 8px 12px;
+    padding-bottom: calc(8px + var(--safe-bottom));
+    background: var(--bg);
+  }
+  .score-col {
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .score-col .point-btn {
+    width: 100%;
+    border: 0;
+    border-radius: 14px;
+    color: #fff;
+    font-family: 'Anton', sans-serif;
+    font-size: 22px;
+    cursor: pointer;
+    transition: transform 0.1s, filter 0.15s;
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+    min-height: 50px;
+    padding: 0 10px;
+  }
+  .score-col.home .point-btn {
+    background: linear-gradient(135deg, var(--home), color-mix(in srgb, var(--home) 60%, #000));
+  }
+  .score-col.away .point-btn {
+    background: linear-gradient(135deg, var(--away), color-mix(in srgb, var(--away) 60%, #000));
+  }
+  .score-col .point-btn:active { transform: scale(0.96); filter: brightness(1.15); }
+  .score-col .point-btn.dis { opacity: 0.4; pointer-events: none; }
+  .score-col .point-btn .label-team {
+    font-size: 12px;
+    opacity: 0.9;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1;
+  }
+  .score-col .secondary-row {
+    display: flex; gap: 5px;
+  }
+  .score-col .secondary-btn {
+    flex: 1;
+    padding: 7px 4px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+    min-height: 30px;
+  }
+  .score-col .secondary-btn:active { background: var(--bg-elev-2); }
+
+  /* PLAYER STRIP — horizontal scroll */
+  .players-strip {
+    flex: 0 0 auto;
+    display: flex; gap: 6px;
+    padding: 6px 12px;
+    overflow-x: auto;
+    background: var(--bg-elev);
+    border-top: 1px solid var(--border);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .players-strip::-webkit-scrollbar { display: none; }
+  .players-strip .player-chip {
+    flex: 0 0 auto;
+    min-width: 44px;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-elev-2);
+    border-radius: 9px;
+    color: var(--text);
+    font-family: inherit;
+    cursor: pointer;
+    text-align: center;
+  }
+  .players-strip .player-chip.selected {
+    background: linear-gradient(135deg, var(--home), color-mix(in srgb, var(--home) 60%, #000));
+    border-color: var(--home);
+    color: white;
+  }
+  .players-strip .player-chip .num {
+    font-family: 'Anton', sans-serif;
+    font-size: 16px;
+    line-height: 1;
+  }
+  .players-strip .player-chip .nm {
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-top: 1px;
+    line-height: 1;
+  }
+  .players-strip .player-chip.selected .nm { color: rgba(255,255,255,0.85); }
+
+  /* ACTION PILLS — compact bottom row */
+  .action-row {
+    flex: 0 0 auto;
+    display: flex; gap: 6px;
+    padding: 6px 12px 8px;
+    background: var(--bg);
+  }
+  .action-row .action-pill {
+    flex: 1;
+    padding: 6px 4px;
+    border: 1px solid var(--border);
+    background: var(--bg-elev);
+    color: var(--text-muted);
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 11px; font-weight: 700;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    min-height: 32px;
+  }
+  .action-row .action-pill[disabled] { opacity: 0.4; }
+
+  /* ============================================================
+     FX OVERLAY — fullscreen animation when ACE/BOOM/etc is fired
+     ============================================================ */
+  .fx-overlay {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    pointer-events: none;
+    z-index: 9000;
+    opacity: 0;
+  }
+  .fx-overlay.active { animation: fxIn 1.4s ease-out forwards; }
+  .fx-overlay-text {
+    font-family: 'Anton', sans-serif;
+    font-size: clamp(80px, 22vw, 220px);
+    line-height: 0.9;
+    letter-spacing: 0.04em;
+    color: white;
+    text-shadow:
+      0 0 20px rgba(255, 255, 255, 0.7),
+      0 0 40px rgba(255, 184, 0, 0.5),
+      0 8px 0 rgba(0, 0, 0, 0.4);
+    transform: scale(0.4) rotate(-5deg);
+    text-align: center;
+    padding: 0 12px;
+  }
+  .fx-overlay.fx-ace .fx-overlay-text {
+    color: #FFB800;
+    text-shadow: 0 0 20px #FFB800, 0 0 50px #FF8A00, 0 8px 0 rgba(0,0,0,0.4);
+  }
+  .fx-overlay.fx-boom .fx-overlay-text {
+    color: #FF4D2E;
+    text-shadow: 0 0 20px #FF4D2E, 0 0 50px #C41A00, 0 8px 0 rgba(0,0,0,0.4);
+  }
+  .fx-overlay.fx-block .fx-overlay-text {
+    color: #00D67D;
+    text-shadow: 0 0 20px #00D67D, 0 0 50px #007A47, 0 8px 0 rgba(0,0,0,0.4);
+  }
+  .fx-overlay.fx-denied .fx-overlay-text {
+    color: #4D8DFF;
+    text-shadow: 0 0 20px #4D8DFF, 0 0 50px #1E4DBC, 0 8px 0 rgba(0,0,0,0.4);
+  }
+  @keyframes fxIn {
+    0%   { opacity: 0; }
+    8%   { opacity: 1; }
+    20%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  .fx-overlay.active .fx-overlay-text {
+    animation: fxTextPop 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  @keyframes fxTextPop {
+    0%   { transform: scale(0.4) rotate(-5deg); }
+    25%  { transform: scale(1.2) rotate(2deg); }
+    40%  { transform: scale(1) rotate(0deg); }
+    75%  { transform: scale(1.05) rotate(0deg); }
+    100% { transform: scale(1.6) rotate(0deg); opacity: 0; }
+  }
+
+  /* Mute FX toggle on viewer */
+  .fx-mute-toggle {
+    background: rgba(0,0,0,0.45);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: white;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 10px; font-weight: 700;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: inherit;
+  }
+
+  /* RESPONSIVE — landscape and larger screens */
+  @media (min-width: 700px) {
+    .fx-btn { font-size: 15px; padding: 12px 4px; }
+    .score-col .point-btn { font-size: 24px; min-height: 56px; }
+    .mini-center { font-size: 38px; }
+  }
+  @media (min-width: 1000px) {
+    #screen-live .live-cam { margin: 10px 12px; }
+    .fx-btn { font-size: 17px; }
+  }
+  /* On very narrow screens, hide FX emojis to save space */
+  @media (max-width: 360px) {
+    .fx-btn .fx-emoji { display: none; }
+    .fx-btn { font-size: 11px; }
+  }
 </style>
 </head>
 <body>
@@ -796,8 +1213,9 @@
     </div>
   </div>
 
-  <!-- ============= SCREEN 2: LIVE ============= -->
+  <!-- ============= SCREEN 2: LIVE (compact layout) ============= -->
   <div class="screen" id="screen-live">
+    <!-- Top bar -->
     <div class="live-top">
       <span class="live-pill"><span class="live-dot"></span> LIVE</span>
       <span class="timer" id="match-timer">00:00</span>
@@ -808,6 +1226,7 @@
       <button class="end-btn" id="btn-end">End</button>
     </div>
 
+    <!-- VIDEO (big, takes the most space) -->
     <div class="live-cam">
       <video id="live-video" playsinline muted autoplay></video>
       <div class="ph" id="live-ph" style="display:none;">Camera unavailable · stream paused</div>
@@ -817,91 +1236,127 @@
       </div>
     </div>
 
-    <div class="set-strip">
-      <span class="set-info">SET <b id="set-num">1</b> · <span id="set-target">TO 25</span> · 2-pt lead</span>
-      <button class="small-btn" id="btn-end-set">End set</button>
-    </div>
-
-    <div class="teams">
-      <div class="team-panel home">
-        <div class="panel-head">
-          <span class="panel-name" id="home-name">Madison Eagles</span>
-          <div class="panel-sets" id="home-sets">
-            <div class="set-dot"></div>
-            <div class="set-dot"></div>
-            <div class="set-dot"></div>
-          </div>
-        </div>
-        <div class="panel-body">
-          <div class="panel-score" id="home-score">0</div>
-          <div class="panel-controls">
-            <button class="point-btn" id="home-plus">+1</button>
-            <div class="secondary-row">
-              <button class="secondary-btn" id="home-minus">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                −1
-              </button>
-              <button class="secondary-btn" id="home-attribute">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/></svg>
-                <span id="home-attr-label">Attribute</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="players-row" id="players-row">
-          <button class="player-chip" data-player="Sophia M.|7">7<div class="player-chip-label">Sophia</div></button>
-          <button class="player-chip" data-player="Lucy R.|3">3<div class="player-chip-label">Lucy</div></button>
-          <button class="player-chip" data-player="Carla V.|9">9<div class="player-chip-label">Carla</div></button>
-          <button class="player-chip" data-player="Mara P.|12">12<div class="player-chip-label">Mara</div></button>
-          <button class="player-chip" data-player="Ivy C.|5">5<div class="player-chip-label">Ivy</div></button>
-          <button class="player-chip" data-player="Andrea G.|11">11<div class="player-chip-label">Andrea</div></button>
-          <button class="player-chip" data-player="Paula N.|14">14<div class="player-chip-label">Paula</div></button>
-          <button class="player-chip" data-player="Eva T.|8">8<div class="player-chip-label">Eva</div></button>
-        </div>
+    <!-- MINI scoreboard (one line) -->
+    <div class="mini-board">
+      <div class="mini-side home">
+        <span class="mini-team-name home" id="home-name">Madison Eagles</span>
+        <span class="mini-sets" id="home-sets">
+          <span class="mini-set-dot home"></span>
+          <span class="mini-set-dot home"></span>
+          <span class="mini-set-dot home"></span>
+        </span>
       </div>
-
-      <div class="team-panel away">
-        <div class="panel-head">
-          <span class="panel-name" id="away-name">Brooklyn Sharks</span>
-          <div class="panel-sets" id="away-sets">
-            <div class="set-dot"></div>
-            <div class="set-dot"></div>
-            <div class="set-dot"></div>
-          </div>
-        </div>
-        <div class="panel-body">
-          <div class="panel-score" id="away-score">0</div>
-          <div class="panel-controls">
-            <button class="point-btn" id="away-plus">+1</button>
-            <div class="secondary-row">
-              <button class="secondary-btn" id="away-minus">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                −1
-              </button>
-              <button class="secondary-btn">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                Mark clip
-              </button>
-            </div>
-          </div>
-        </div>
+      <div class="mini-center">
+        <span class="mini-score home" id="home-score">0</span>
+        <span class="mini-dash">—</span>
+        <span class="mini-score away" id="away-score">0</span>
+      </div>
+      <div class="mini-side away">
+        <span class="mini-sets right" id="away-sets">
+          <span class="mini-set-dot away"></span>
+          <span class="mini-set-dot away"></span>
+          <span class="mini-set-dot away"></span>
+        </span>
+        <span class="mini-team-name away" id="away-name">Brooklyn Sharks</span>
+      </div>
+      <div class="mini-set-info">
+        SET <b id="set-num">1</b> · <span id="set-target">TO 25</span>
+        <span class="serve-indicator" id="serve-ind">● Home serving</span>
       </div>
     </div>
 
-    <div class="live-bottom">
+    <!-- FX BUTTONS — special effects -->
+    <div class="fx-row">
+      <button class="fx-btn ace" data-fx="ace" data-fx-label="ACE!">
+        <span class="fx-emoji">⚡</span>
+        ACE
+      </button>
+      <button class="fx-btn boom" data-fx="boom" data-fx-label="BOOM!">
+        <span class="fx-emoji">💥</span>
+        BOOM
+      </button>
+      <button class="fx-btn block" data-fx="block" data-fx-label="MONSTER BLOCK!">
+        <span class="fx-emoji">🛡️</span>
+        BLOCK
+      </button>
+      <button class="fx-btn denied" data-fx="denied" data-fx-label="DENIED!">
+        <span class="fx-emoji">🚫</span>
+        DENIED
+      </button>
+    </div>
+
+    <!-- Chat preview strip -->
+    <div class="chat-strip" id="chat-strip">
+      <div class="chat-strip-empty" id="chat-strip-empty">Family chat will show here when viewers say something</div>
+    </div>
+
+    <!-- Score controls -->
+    <div class="score-row">
+      <div class="score-col home">
+        <button class="point-btn" id="home-plus">
+          <span>+1</span>
+          <span class="label-team" id="home-plus-label">HOME</span>
+        </button>
+        <div class="secondary-row">
+          <button class="secondary-btn" id="home-minus">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            −1
+          </button>
+          <button class="secondary-btn" id="home-attribute">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/></svg>
+            <span id="home-attr-label">Attr</span>
+          </button>
+        </div>
+      </div>
+      <div class="score-col away">
+        <button class="point-btn" id="away-plus">
+          <span>+1</span>
+          <span class="label-team" id="away-plus-label">AWAY</span>
+        </button>
+        <div class="secondary-row">
+          <button class="secondary-btn" id="away-minus">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            −1
+          </button>
+          <button class="secondary-btn" id="btn-end-set">
+            End set
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Player chips strip -->
+    <div class="players-strip" id="players-row">
+      <button class="player-chip" data-player="Sophia M.|7"><div class="num">7</div><div class="nm">Sophia</div></button>
+      <button class="player-chip" data-player="Lucy R.|3"><div class="num">3</div><div class="nm">Lucy</div></button>
+      <button class="player-chip" data-player="Carla V.|9"><div class="num">9</div><div class="nm">Carla</div></button>
+      <button class="player-chip" data-player="Mara P.|12"><div class="num">12</div><div class="nm">Mara</div></button>
+      <button class="player-chip" data-player="Ivy C.|5"><div class="num">5</div><div class="nm">Ivy</div></button>
+      <button class="player-chip" data-player="Andrea G.|11"><div class="num">11</div><div class="nm">Andrea</div></button>
+      <button class="player-chip" data-player="Paula N.|14"><div class="num">14</div><div class="nm">Paula</div></button>
+      <button class="player-chip" data-player="Eva T.|8"><div class="num">8</div><div class="nm">Eva</div></button>
+    </div>
+
+    <!-- Action bar -->
+    <div class="action-row">
       <button class="action-pill" id="btn-undo" disabled>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></svg>
         Undo
       </button>
       <button class="action-pill" id="btn-swap">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
         Swap
       </button>
       <button class="action-pill" id="btn-timeout">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Timeout
       </button>
     </div>
+  </div>
+
+  <!-- FX overlay (covers full screen on broadcaster too, for confirmation) -->
+  <div class="fx-overlay" id="fx-overlay">
+    <div class="fx-overlay-text" id="fx-overlay-text"></div>
   </div>
 
 </div>
@@ -1162,6 +1617,9 @@
         console.warn('WebRTC broadcast not available:', err);
       }
     }
+
+    // Open FX broadcast channel and chat strip subscription
+    activateLiveSubscriptions();
   }
 
   function startTimers() {
@@ -1437,11 +1895,299 @@
     location.reload();
   });
 
+  // ============================================================
+  // FX SYSTEM — sound effects + visual overlay + viewer broadcast
+  // ============================================================
+  // Each FX button (ACE, BOOM, BLOCK, DENIED) plays a synth sound,
+  // shows a fullscreen text animation on the broadcaster, and
+  // broadcasts the same event to all viewers via Supabase Realtime.
+  // Viewers see the animation and optionally hear the sound
+  // (they have a mute toggle).
+  // ============================================================
+
+  let tone = null;        // dynamically imported Tone.js module
+  let toneReady = false;  // user must interact once to unlock audio
+  let fxChannel = null;   // Supabase realtime broadcast channel
+
+  // Lazy-load Tone.js on first FX press to avoid blocking page load
+  async function ensureTone() {
+    if (toneReady) return tone;
+    if (!tone) {
+      try {
+        tone = await import('https://esm.sh/tone@14.8.49');
+      } catch (e) {
+        console.warn('Could not load Tone.js:', e);
+        return null;
+      }
+    }
+    try {
+      await tone.start();  // unlock audio context on first user gesture
+      toneReady = true;
+    } catch (e) {
+      console.warn('Tone.start failed:', e);
+    }
+    return tone;
+  }
+
+  // Synth sound presets — each FX has its own signature sound
+  function playFxSound(fx) {
+    if (!tone || !toneReady) return;
+    const now = tone.now();
+    switch (fx) {
+      case 'ace': {
+        // Bright, rising "whoosh + pluck"
+        const synth = new tone.Synth({
+          oscillator: { type: 'sawtooth' },
+          envelope: { attack: 0.005, decay: 0.2, sustain: 0.0, release: 0.2 }
+        }).toDestination();
+        synth.volume.value = -8;
+        synth.triggerAttackRelease('C5', '16n', now);
+        synth.triggerAttackRelease('E5', '16n', now + 0.08);
+        synth.triggerAttackRelease('G5', '8n',  now + 0.16);
+        synth.triggerAttackRelease('C6', '4n',  now + 0.28);
+        setTimeout(() => synth.dispose(), 1500);
+        break;
+      }
+      case 'boom': {
+        // Heavy hit — kick + crash
+        const kick = new tone.MembraneSynth({
+          pitchDecay: 0.06, octaves: 6,
+          envelope: { attack: 0.001, decay: 0.4, sustain: 0.0, release: 0.4 }
+        }).toDestination();
+        kick.volume.value = -4;
+        kick.triggerAttackRelease('C2', '4n', now);
+
+        const crash = new tone.MetalSynth({
+          frequency: 250,
+          envelope: { attack: 0.001, decay: 0.5, release: 0.2 },
+          harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5
+        }).toDestination();
+        crash.volume.value = -18;
+        crash.triggerAttackRelease('16n', now + 0.05);
+
+        setTimeout(() => { kick.dispose(); crash.dispose(); }, 1500);
+        break;
+      }
+      case 'block': {
+        // "Defended" — short stab + bouncy resonance
+        const synth = new tone.Synth({
+          oscillator: { type: 'square' },
+          envelope: { attack: 0.001, decay: 0.15, sustain: 0.0, release: 0.1 }
+        }).toDestination();
+        synth.volume.value = -10;
+        synth.triggerAttackRelease('G3', '16n', now);
+        synth.triggerAttackRelease('G3', '16n', now + 0.06);
+        synth.triggerAttackRelease('B3', '16n', now + 0.12);
+        synth.triggerAttackRelease('D4', '8n',  now + 0.18);
+
+        // Add a quick low rumble
+        const bass = new tone.MembraneSynth({
+          pitchDecay: 0.04, octaves: 4,
+          envelope: { attack: 0.001, decay: 0.3, sustain: 0, release: 0.3 }
+        }).toDestination();
+        bass.volume.value = -8;
+        bass.triggerAttackRelease('F1', '8n', now);
+
+        setTimeout(() => { synth.dispose(); bass.dispose(); }, 1500);
+        break;
+      }
+      case 'denied': {
+        // Descending "wah wah" — rejection
+        const synth = new tone.Synth({
+          oscillator: { type: 'sawtooth' },
+          envelope: { attack: 0.01, decay: 0.4, sustain: 0.2, release: 0.3 }
+        }).toDestination();
+        synth.volume.value = -8;
+        synth.triggerAttackRelease('A4', '8n', now);
+        synth.triggerAttackRelease('G4', '8n', now + 0.18);
+        synth.triggerAttackRelease('F4', '4n', now + 0.36);
+
+        setTimeout(() => synth.dispose(), 1500);
+        break;
+      }
+    }
+  }
+
+  // ============================================================
+  // VOICE LINES — Web Speech API with pitch/rate per FX
+  // ============================================================
+  // Each FX has its own vocal personality:
+  //   - ACE: high pitch, fast, excited
+  //   - BOOM: medium-low pitch, normal, punchy
+  //   - BLOCK: very low pitch, slow, monstrous
+  //   - DENIED: low pitch, slow, authoritative
+  // ============================================================
+
+  const FX_VOICES = {
+    ace:    { text: 'Ace!',           pitch: 1.6, rate: 1.25, volume: 1.0, delay: 60 },
+    boom:   { text: 'Boom!',          pitch: 0.7, rate: 1.0,  volume: 1.0, delay: 80 },
+    block:  { text: 'Monster block!', pitch: 0.2, rate: 0.65, volume: 1.0, delay: 60 },
+    denied: { text: 'Denied!',        pitch: 0.4, rate: 0.85, volume: 1.0, delay: 100 },
+  };
+
+  // Try to pick a deep English voice when available (Google/Microsoft tend to
+  // have richer voices than the OS default). We re-pick whenever the voices
+  // list updates because some browsers load voices asynchronously.
+  let preferredVoice = null;
+  function pickPreferredVoice() {
+    if (!('speechSynthesis' in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return null;
+    // Preference order: deep-sounding English voices first
+    const preferences = [
+      v => v.lang.startsWith('en') && /Google.*US.*Male/i.test(v.name),
+      v => v.lang.startsWith('en') && /Daniel|Alex|Fred|Aaron|Arthur/i.test(v.name),
+      v => v.lang.startsWith('en') && /Male/i.test(v.name),
+      v => v.lang.startsWith('en-US'),
+      v => v.lang.startsWith('en'),
+      v => true, // last resort
+    ];
+    for (const pref of preferences) {
+      const match = voices.find(pref);
+      if (match) return match;
+    }
+    return null;
+  }
+  if ('speechSynthesis' in window) {
+    preferredVoice = pickPreferredVoice();
+    window.speechSynthesis.addEventListener('voiceschanged', () => {
+      preferredVoice = pickPreferredVoice();
+    });
+  }
+
+  function speakFx(fx) {
+    if (!('speechSynthesis' in window)) return;
+    const cfg = FX_VOICES[fx];
+    if (!cfg) return;
+    try {
+      // Cancel any speech still in queue so FX never stack up
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(cfg.text);
+      if (preferredVoice) utter.voice = preferredVoice;
+      utter.pitch = cfg.pitch;
+      utter.rate = cfg.rate;
+      utter.volume = cfg.volume;
+      // Small delay so the synth sound starts first and the voice lands ON TOP
+      setTimeout(() => {
+        try { window.speechSynthesis.speak(utter); }
+        catch (_) {/* no-op */}
+      }, cfg.delay);
+    } catch (e) {
+      console.warn('speakFx failed:', e);
+    }
+  }
+
+  function showFxOverlay(fx, label) {
+    const overlay = $('fx-overlay');
+    const text = $('fx-overlay-text');
+    overlay.className = 'fx-overlay';  // reset
+    void overlay.offsetWidth;            // force reflow
+    text.textContent = label;
+    overlay.classList.add('active', 'fx-' + fx);
+    setTimeout(() => {
+      overlay.classList.remove('active', 'fx-' + fx);
+    }, 1500);
+  }
+
+  async function fireFx(fx, label) {
+    // 1. Visual on broadcaster
+    showFxOverlay(fx, label);
+    // 2. Sound on broadcaster (synth backing + voice on top)
+    await ensureTone();
+    playFxSound(fx);
+    speakFx(fx);
+    // 3. Broadcast to viewers via Supabase Realtime (no DB writes — fast)
+    if (currentMatch && fxChannel) {
+      try {
+        await fxChannel.send({
+          type: 'broadcast',
+          event: 'fx',
+          payload: { fx, label, ts: Date.now() }
+        });
+      } catch (e) { /* non-critical */ }
+    }
+  }
+
+  // Hook up FX buttons
+  document.querySelectorAll('.fx-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const fx = btn.dataset.fx;
+      const label = btn.dataset.fxLabel;
+      // Brief cooldown to prevent spam
+      btn.classList.add('cooldown');
+      setTimeout(() => btn.classList.remove('cooldown'), 800);
+      await fireFx(fx, label);
+    });
+  });
+
+  // Open the FX broadcast channel once we have a match
+  function openFxChannel(matchId) {
+    if (fxChannel) return;
+    fxChannel = supabase.channel(`fx:${matchId}`, {
+      config: { broadcast: { self: false, ack: false } }
+    });
+    fxChannel.subscribe();
+  }
+
+  // ============================================================
+  // CHAT STRIP — show latest 2 messages in the broadcaster
+  // ============================================================
+  function subscribeChatStrip(matchId) {
+    // Load initial messages
+    supabase.from('chat_messages')
+      .select('*')
+      .eq('match_id', matchId)
+      .order('created_at', { ascending: false })
+      .limit(2)
+      .then(({ data }) => {
+        if (data && data.length) {
+          $('chat-strip-empty').style.display = 'none';
+          // Insert in reverse so newest is at top
+          data.forEach(m => prependChatLine(m));
+        }
+      });
+
+    // Subscribe to new messages
+    supabase.channel(`chat:broadcaster:${matchId}`)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `match_id=eq.${matchId}` },
+        (payload) => prependChatLine(payload.new))
+      .subscribe();
+  }
+
+  function prependChatLine(msg) {
+    if (msg.is_reaction) return;  // skip emoji-only reactions
+    $('chat-strip-empty').style.display = 'none';
+    const strip = $('chat-strip');
+    const line = document.createElement('div');
+    line.className = 'chat-line new';
+    const who = (msg.user_name || 'Family').split(' ')[0];
+    line.innerHTML = `<span class="who">${escapeHtml(who)}:</span><span class="msg">${escapeHtml(msg.message)}</span>`;
+    strip.insertBefore(line, strip.firstChild);
+    while (strip.querySelectorAll('.chat-line').length > 2) {
+      strip.removeChild(strip.lastChild);
+    }
+    setTimeout(() => line.classList.remove('new'), 400);
+  }
+
+  function escapeHtml(s) {
+    return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // Hook the chat strip and fx channel to the match — called from transitionToLive
+  function activateLiveSubscriptions() {
+    if (currentMatch) {
+      openFxChannel(currentMatch.id);
+      subscribeChatStrip(currentMatch.id);
+    }
+  }
+
   // Cleanup
   window.addEventListener('pagehide', async () => {
     if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
     if (liveBroadcaster) await liveBroadcaster.stop();
     if (unsubMatch) await supabase.removeChannel(unsubMatch);
+    if (fxChannel) await supabase.removeChannel(fxChannel);
     stopTimers();
   });
 </script>
