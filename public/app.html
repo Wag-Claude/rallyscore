@@ -1486,8 +1486,8 @@
     supabase, getUser, getProfile, isBackendConfigured,
     getLiveMatches, getMatchPoints, getMatchSets, subscribeToMatch,
     subscribeToNotifications, hasProAccess, signOut, onAuthChange
-  } from '../src/supabase-client.js';
-  import { requireAuth, openPaywall, openSignInModal } from '../src/auth-ui.js';
+  } from './src/supabase-client.js';
+  import { requireAuth, openPaywall, openSignInModal } from './src/auth-ui.js';
 
   // Wrap everything in an async IIFE so we can `return` early without
   // hitting the "Illegal return statement" syntax error at module top level.

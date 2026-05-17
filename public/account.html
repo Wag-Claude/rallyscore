@@ -111,8 +111,8 @@
   import {
     supabase, getUser, getProfile, getActiveSubscription,
     getFollowedPlayers, signOut, isBackendConfigured
-  } from '../src/supabase-client.js';
-  import { openSignInModal, openPaywall } from '../src/auth-ui.js';
+  } from './src/supabase-client.js';
+  import { openSignInModal, openPaywall } from './src/auth-ui.js';
 
   // Show success banner if redirected from Stripe
   if (new URL(location.href).searchParams.get('checkout') === 'success') {

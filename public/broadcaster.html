@@ -926,9 +926,9 @@
 <script type="module">
   import {
     supabase, getUser, isBackendConfigured, scorePoint, undoLastPoint, showAuthBanner
-  } from '../src/supabase-client.js';
-  import { LiveBroadcaster } from '../src/webrtc-live.js';
-  import { requireAuth, showToast as toast } from '../src/auth-ui.js';
+  } from './src/supabase-client.js';
+  import { LiveBroadcaster } from './src/webrtc-live.js';
+  import { requireAuth, showToast as toast } from './src/auth-ui.js';
 
   if (!isBackendConfigured) showAuthBanner();
 

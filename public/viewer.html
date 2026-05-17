@@ -859,9 +859,9 @@
   import {
     supabase, getMatch, getMatchPoints, getMatchSets, subscribeToMatch,
     isBackendConfigured, showAuthBanner, getUser
-  } from '../src/supabase-client.js';
-  import { LiveViewer } from '../src/webrtc-live.js';
-  import { showToast as toast } from '../src/auth-ui.js';
+  } from './src/supabase-client.js';
+  import { LiveViewer } from './src/webrtc-live.js';
+  import { showToast as toast } from './src/auth-ui.js';
 
   if (!isBackendConfigured) showAuthBanner();
 
