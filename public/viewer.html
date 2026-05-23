@@ -496,15 +496,20 @@
   .chat-time { font-size: 10px; color: var(--text-dim); margin-left: auto; }
   .chat-text { font-size: 13px; line-height: 1.35; word-wrap: break-word; }
 
-  /* Chat input composer */
+  /* Chat input composer — fixed at bottom when chat tab is active */
   #chat-input-bar {
-    position: sticky;
+    position: fixed;
+    left: 0; right: 0;
     bottom: 0;
-    background: linear-gradient(to top, var(--bg) 70%, rgba(10, 14, 27, 0));
-    padding: 8px 0 4px;
-    margin-top: 8px;
-    z-index: 5;
+    background: linear-gradient(to top, var(--bg) 80%, rgba(10, 14, 27, 0.95) 95%, rgba(10, 14, 27, 0));
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index: 50;
+    /* Hidden by default — JS reveals only when chat tab is active */
+    display: none;
   }
+  #chat-input-bar.visible { display: block; }
+  /* Push the feed up so messages aren't hidden behind the composer */
+  #tab-chat.active.with-composer { padding-bottom: 76px; }
   .chat-composer {
     display: flex; align-items: center; gap: 8px;
     background: var(--bg-elev);
@@ -667,7 +672,7 @@
     z-index: 9000;
     opacity: 0;
   }
-  .fx-overlay.active { animation: fxIn 1.4s ease-out forwards; }
+  .fx-overlay.active { animation: fxIn 2.8s ease-out forwards; }
   .fx-overlay-text {
     font-family: 'Anton', sans-serif;
     font-size: clamp(80px, 22vw, 220px);
@@ -700,18 +705,18 @@
   }
   @keyframes fxIn {
     0%   { opacity: 0; }
-    8%   { opacity: 1; }
-    20%  { opacity: 1; }
+    4%   { opacity: 1; }
+    65%  { opacity: 1; }
     100% { opacity: 0; }
   }
   .fx-overlay.active .fx-overlay-text {
-    animation: fxTextPop 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation: fxTextPop 2.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   }
   @keyframes fxTextPop {
     0%   { transform: scale(0.4) rotate(-5deg); }
-    25%  { transform: scale(1.2) rotate(2deg); }
-    40%  { transform: scale(1) rotate(0deg); }
-    75%  { transform: scale(1.05) rotate(0deg); }
+    12%  { transform: scale(1.2) rotate(2deg); }
+    20%  { transform: scale(1) rotate(0deg); }
+    80%  { transform: scale(1.05) rotate(0deg); }
     100% { transform: scale(1.6) rotate(0deg); opacity: 0; }
   }
 
@@ -1370,18 +1375,25 @@
 
   // Show signin prompt if not authenticated; otherwise show composer
   async function refreshChatComposer() {
-    const user = await getUser();
-    if (user) {
-      chatComposer.style.display = '';
-      chatSigninPrompt.style.display = 'none';
-    } else {
-      chatComposer.style.display = 'none';
-      chatSigninPrompt.style.display = '';
+    if (!chatComposer || !chatSigninPrompt) return;
+    try {
+      const user = await getUser();
+      if (user) {
+        chatComposer.style.display = 'flex';
+        chatSigninPrompt.style.display = 'none';
+      } else {
+        chatComposer.style.display = 'none';
+        chatSigninPrompt.style.display = 'flex';
+      }
+    } catch (e) {
+      console.warn('refreshChatComposer failed:', e);
     }
   }
   refreshChatComposer();
   // Re-evaluate after each auth change
-  supabase.auth.onAuthStateChange(() => refreshChatComposer());
+  try {
+    supabase.auth.onAuthStateChange(() => refreshChatComposer());
+  } catch (e) { console.warn(e); }
 
   // Sign-in button inside chat
   chatSigninBtn?.addEventListener('click', async () => {
@@ -1394,6 +1406,7 @@
 
   // Enable/disable send button based on input
   function updateSendButton() {
+    if (!chatInput || !chatSendBtn) return;
     const text = chatInput.value.trim();
     chatSendBtn.disabled = text.length === 0;
   }
@@ -1481,8 +1494,23 @@
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       tab.classList.add('active');
       $('tab-' + tab.dataset.tab).classList.add('active');
+      // Reveal the chat input only when the chat tab is active
+      const isChat = tab.dataset.tab === 'chat';
+      const bar = $('chat-input-bar');
+      const chatTab = $('tab-chat');
+      if (bar) bar.classList.toggle('visible', isChat);
+      if (chatTab) chatTab.classList.toggle('with-composer', isChat);
     });
   });
+
+  // Show the chat composer on initial load since the chat tab starts as active
+  (function showChatInputOnLoad() {
+    const isChatActive = document.querySelector('#tabs .tab.active')?.dataset.tab === 'chat';
+    if (isChatActive) {
+      $('chat-input-bar')?.classList.add('visible');
+      $('tab-chat')?.classList.add('with-composer');
+    }
+  })();
 
   // Mute / unmute
   let muted = true;
@@ -1696,10 +1724,10 @@
   // VOICE LINES — Web Speech API with pitch/rate per FX
   // ============================================================
   const FX_VOICES = {
-    ace:    { text: 'Ace!',           pitch: 1.6, rate: 1.25, volume: 1.0, delay: 60 },
-    boom:   { text: 'Boom!',          pitch: 0.7, rate: 1.0,  volume: 1.0, delay: 80 },
-    block:  { text: 'Monster block!', pitch: 0.2, rate: 0.65, volume: 1.0, delay: 60 },
-    denied: { text: 'Denied!',        pitch: 0.4, rate: 0.85, volume: 1.0, delay: 100 },
+    ace:    { text: 'Ace!',           pitch: 1.6, rate: 0.85, volume: 1.0, delay: 60 },
+    boom:   { text: 'Boom!',          pitch: 0.7, rate: 0.65, volume: 1.0, delay: 80 },
+    block:  { text: 'Monster block!', pitch: 0.2, rate: 0.45, volume: 1.0, delay: 60 },
+    denied: { text: 'Denied!',        pitch: 0.4, rate: 0.55, volume: 1.0, delay: 100 },
   };
 
   let preferredVoice = null;
@@ -1758,7 +1786,7 @@
     overlay.classList.add('active', 'fx-' + fx);
     setTimeout(() => {
       overlay.classList.remove('active', 'fx-' + fx);
-    }, 1500);
+    }, 2900);
   }
 
   async function handleFxEvent({ fx, label }) {

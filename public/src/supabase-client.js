@@ -101,19 +101,49 @@ export async function hasProAccess() {
   return !!sub;
 }
 
+// ---- Helpers ---------------------------------------------------------------
+// Wrap any promise with a hard timeout so the UI never freezes forever if
+// Supabase or the network gets stuck. Returns null (or default) on timeout.
+function withTimeout(promise, ms = 6000, label = 'query') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`[Supabase] ${label} timed out after ${ms}ms`)), ms)
+    )
+  ]);
+}
+
 // ---- Match helpers ---------------------------------------------------------
 export async function getLiveMatches() {
-  const { data } = await supabase
-    .from('matches')
-    .select('*')
-    .eq('status', 'live')
-    .order('stream_started_at', { ascending: false });
-  return data || [];
+  try {
+    const { data } = await withTimeout(
+      supabase
+        .from('matches')
+        .select('*')
+        .eq('status', 'live')
+        .order('stream_started_at', { ascending: false }),
+      6000,
+      'getLiveMatches'
+    );
+    return data || [];
+  } catch (e) {
+    console.warn(e.message);
+    return [];
+  }
 }
 
 export async function getMatch(matchId) {
-  const { data } = await supabase.from('matches').select('*').eq('id', matchId).single();
-  return data;
+  try {
+    const { data } = await withTimeout(
+      supabase.from('matches').select('*').eq('id', matchId).single(),
+      6000,
+      'getMatch'
+    );
+    return data;
+  } catch (e) {
+    console.warn(e.message);
+    return null;
+  }
 }
 
 export async function getMatchPoints(matchId, limit = 50) {
