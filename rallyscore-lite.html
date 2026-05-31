@@ -35,7 +35,8 @@
   [data-sport="soccer"]     { --home: #00D67D; --away: #FF4D2E; }
   [data-sport="volleyball"] { --home: #FF4D2E; --away: #4D8DFF; }
 
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  /* Prevent double-tap zoom on all elements */
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   html, body {
     margin: 0; padding: 0;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -544,6 +545,26 @@
     color: #fff;
     box-shadow: 0 8px 22px rgba(255, 77, 46, 0.4);
   }
+  .sets-summary {
+    display: none;
+    margin: 12px 0 20px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    text-align: left;
+  }
+  .set-summary-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 14px;
+    font-size: 13px; font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .set-summary-row:last-child { border-bottom: none; }
+  .set-summary-row .set-label { color: var(--text-dim); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+  .set-summary-row .set-score { color: var(--text); font-size: 14px; }
+  .set-summary-row.set-winner { background: rgba(255,184,0,0.07); }
+  .set-summary-row .set-winner-tag { font-size: 9px; font-weight: 800; color: var(--accent-2); text-transform: uppercase; letter-spacing: 0.06em; }
 
   /* Toast */
   .toast {
@@ -564,6 +585,41 @@
   .toast.show {
     opacity: 1;
     transform: translate(-50%, 0);
+  }
+
+  /* ── Landscape mode ─────────────────────────────────── */
+  @media (orientation: landscape) {
+    body { min-height: 100dvh; }
+    #app { max-width: 100%; min-height: 100dvh; }
+
+    .topbar { padding: 4px 12px 4px; }
+    .brand-mark { width: 22px; height: 22px; font-size: 13px; }
+    .brand { font-size: 13px; gap: 7px; }
+    .lite-badge { display: none; }
+    .icon-btn { width: 30px; height: 30px; }
+
+    .sport-tabs { padding: 4px 10px; gap: 5px; }
+    .sport-tab { padding: 5px 6px; font-size: 11px; border-radius: 9px; }
+    .sport-tab .ico { font-size: 13px; }
+
+    .period-bar { padding: 5px 12px; }
+    .period-value { font-size: 17px; }
+    .clock { font-size: 17px; padding: 3px 10px; }
+
+    .teams { flex: 1; }
+    .team { padding: 6px 8px 8px; }
+    .team-name { font-size: 13px; }
+    .team-score { font-size: min(25vw, 36vh) !important; }
+    [data-sport="basketball"] .team-score {
+      font-size: clamp(44px, 16vh, 90px) !important;
+    }
+    .point-btn { padding: 8px 6px; font-size: 16px; }
+
+    .actions-bar { padding: 6px 12px; gap: 6px; }
+    .action-btn { padding: 7px 6px; font-size: 11px; }
+
+    /* Hide ads in landscape — no vertical space */
+    .ad-banner, .upgrade-banner { display: none; }
   }
 </style>
 </head>
@@ -621,6 +677,8 @@
           <div class="set-dot"></div>
           <div class="set-dot"></div>
           <div class="set-dot"></div>
+          <div class="set-dot"></div>
+          <div class="set-dot"></div>
         </div>
       </div>
       <div class="team-score-row">
@@ -638,6 +696,8 @@
       <div class="team-row">
         <input type="text" class="team-name" id="away-name" value="Away" maxlength="20" />
         <div class="team-sets" id="away-sets">
+          <div class="set-dot"></div>
+          <div class="set-dot"></div>
           <div class="set-dot"></div>
           <div class="set-dot"></div>
           <div class="set-dot"></div>
@@ -700,6 +760,7 @@
       <div class="winner-label">MATCH WINNER</div>
       <div class="winner-name" id="winner-name">Home</div>
       <div class="winner-score" id="winner-score">2 — 0</div>
+      <div class="sets-summary" id="sets-summary"></div>
       <div class="match-over-actions">
         <button class="match-over-btn primary" id="btn-rematch">New match</button>
         <button class="match-over-btn" id="btn-keep">Keep on screen</button>
@@ -719,7 +780,7 @@
       icon: '🏐',
       pointButtons: [1],
       periodLabel: 'Set',
-      periodMax: 3, // best of 3
+      periodMax: 5, // best of 5
       autoEndSet: true,
       target: 25,
       targetFinal: 15,
@@ -921,7 +982,9 @@
     const clockEl = $('clock');
     if (!cfg.hasClock) {
       clockEl.classList.add('hidden');
-      stopClock();
+      // Inline stop to avoid infinite recursion with stopClock→renderClock
+      if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
+      clockRunning = false;
       return;
     }
     clockEl.classList.remove('hidden');
@@ -978,7 +1041,8 @@
   function stopClock() {
     if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
     clockRunning = false;
-    renderClock();
+    const clockEl = $('clock');
+    if (clockEl) clockEl.classList.remove('running');
   }
 
   // Actions
@@ -1073,6 +1137,23 @@
 
     $('winner-name').textContent = winner;
     $('winner-score').textContent = sub;
+
+    // Set summary for volleyball
+    const summaryEl = $('sets-summary');
+    if (activeSport === 'volleyball' && state.setsHistory.length > 0) {
+      summaryEl.style.display = 'block';
+      summaryEl.innerHTML = state.setsHistory.map(([h, a], i) => {
+        const setWinner = h > a ? state.homeName : state.awayName;
+        return `<div class="set-summary-row ${h !== a ? 'set-winner' : ''}">
+          <span class="set-label">Set ${i + 1}</span>
+          <span class="set-score">${h} – ${a}</span>
+          <span class="set-winner-tag">${setWinner}</span>
+        </div>`;
+      }).join('');
+    } else {
+      summaryEl.style.display = 'none';
+    }
+
     $('match-over').classList.add('active');
   }
 
@@ -1179,7 +1260,7 @@
       if (swipeStartX === null) return;
       const dx = e.changedTouches[0].clientX - swipeStartX;
       const dy = e.changedTouches[0].clientY - swipeStartY;
-      if (activeSport === 'basketball' && dx < -50 && Math.abs(dy) < 60) {
+      if (dx < -50 && Math.abs(dy) < 60) {
         subtractPoint(team);
       } else if (activeSport === 'volleyball' && Math.abs(dx) < 20 && Math.abs(dy) < 20) {
         addPoints(team, 1);
