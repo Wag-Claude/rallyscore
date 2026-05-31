@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#0A0E1B" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="RallyScore Lite" />
 <title>RallyScore Lite — Universal Scoreboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/dseg@0.46.0/css/dseg.min.css" rel="stylesheet">
 <style>
   :root {
     --bg: #0A0E1B;
@@ -185,110 +185,170 @@
   /* Teams */
   .teams {
     flex: 1;
-    display: grid; grid-template-rows: 1fr 1fr;
+    display: grid; grid-template-columns: 1fr 2px 1fr;
     min-height: 0;
   }
   .team {
     display: flex; flex-direction: column;
-    padding: 14px 16px;
+    align-items: center;
+    padding: 14px 12px 12px;
     position: relative;
     overflow: hidden;
   }
-  .team.home { background: linear-gradient(180deg, rgba(255, 77, 46, 0.08), transparent 70%); }
-  .team.away { background: linear-gradient(0deg, rgba(77, 141, 255, 0.08), transparent 70%); }
-  [data-sport="basketball"] .team.home { background: linear-gradient(180deg, rgba(255, 138, 0, 0.08), transparent 70%); }
-  [data-sport="basketball"] .team.away { background: linear-gradient(0deg, rgba(77, 141, 255, 0.08), transparent 70%); }
-  [data-sport="soccer"] .team.home { background: linear-gradient(180deg, rgba(0, 214, 125, 0.08), transparent 70%); }
-  [data-sport="soccer"] .team.away { background: linear-gradient(0deg, rgba(255, 77, 46, 0.08), transparent 70%); }
+  .team.home { background: var(--home); }
+  .team.away { background: var(--away); }
+  [data-sport="basketball"] .team.home { background: #111115; }
+  [data-sport="basketball"] .team.away { background: #111115; }
+  [data-sport="soccer"] .team.home { background: var(--home); }
+  [data-sport="soccer"] .team.away { background: var(--away); }
+
+  /* Basketball — dark scoreboard panels */
+  [data-sport="basketball"] .team-name { color: rgba(255,255,255,0.7); }
+  [data-sport="basketball"] .set-dot   { background: rgba(255,255,255,0.15); }
+  /* Hide the −1 button in basketball; use undo instead */
+  [data-sport="basketball"] .point-btn.minus { display: none; }
+  /* Volleyball: hide all point buttons — tap the panel to score */
+  [data-sport="volleyball"] .point-controls { display: none; }
+  [data-sport="volleyball"] .point-btn.minus { display: none; }
+  [data-sport="volleyball"] .team { cursor: pointer; }
+
+  /* Score: DSEG7-Classic font — matches reference image exactly */
+  [data-sport="basketball"] .team-score {
+    font-family: 'DSEG7-Classic', monospace;
+    font-weight: bold;
+    font-style: normal;
+    font-size: clamp(60px, 21vw, 128px);
+    white-space: nowrap;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    flex: 0 0 auto;
+    width: auto;
+  }
+  [data-sport="basketball"] .team.home .team-score {
+    color: #FF2020;
+    text-shadow: 0 0 8px rgba(255,32,32,0.8), 0 0 20px rgba(255,32,32,0.4);
+  }
+  [data-sport="basketball"] .team.away .team-score {
+    color: #1A5FFF;
+    text-shadow: 0 0 8px rgba(26,95,255,0.8), 0 0 20px rgba(26,95,255,0.4);
+  }
+  [data-sport="basketball"] .team-score-row {
+    background: none; border: none; box-shadow: none;
+    padding: 0; margin: 0; gap: 10px;
+  }
+
+  /* Buttons adapt to dark bg */
+  [data-sport="basketball"] .point-btn {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.14);
+    color: rgba(255,255,255,0.75);
+  }
+  [data-sport="basketball"] .team.home .point-btn.primary {
+    background: rgba(255,26,26,0.22);
+    border-color: rgba(255,26,26,0.5);
+    color: #FF4444;
+  }
+  [data-sport="basketball"] .team.away .point-btn.primary {
+    background: rgba(26,95,255,0.22);
+    border-color: rgba(26,95,255,0.5);
+    color: #5588FF;
+  }
 
   .team-row {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 8px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    width: 100%;
   }
   .team-name {
-    font-size: 15px; font-weight: 700;
+    font-size: 16px; font-weight: 700;
     background: transparent;
     border: none;
-    color: var(--text);
+    color: rgba(255, 255, 255, 0.92);
     font-family: inherit;
     padding: 4px 8px;
     border-radius: 8px;
-    width: 60%;
+    width: auto; max-width: 80%;
+    text-align: center;
     outline: none;
     transition: background 0.15s ease;
   }
-  .team-name:focus { background: var(--bg-elev); }
+  .team-name:focus { background: rgba(255, 255, 255, 0.18); }
   .team-sets {
     display: inline-flex; gap: 4px;
   }
   .set-dot {
     width: 8px; height: 8px; border-radius: 50%;
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.28);
   }
-  .team.home .set-dot.won { background: var(--home); }
-  .team.away .set-dot.won { background: var(--away); }
+  .team.home .set-dot.won { background: rgba(255, 255, 255, 0.9); }
+  .team.away .set-dot.won { background: rgba(255, 255, 255, 0.9); }
 
   .team-score-row {
-    display: flex; align-items: center; gap: 12px;
     flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    width: 100%;
   }
   .team-score {
-    flex: 1;
     font-family: 'Anton', sans-serif;
-    font-size: 88px;
-    line-height: 0.85;
+    font-size: min(32vw, 50vh);
+    line-height: 1;
     text-align: center;
+    color: rgba(255, 255, 255, 0.95);
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
     transition: transform 0.3s ease;
-    background: linear-gradient(180deg, var(--score-from, #fff) 0%, var(--score-to, #B5BCD1) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   }
-  .team.home .team-score { --score-from: var(--home); --score-to: #fff; }
-  .team.away .team-score { --score-from: var(--away); --score-to: #fff; }
+  .team.home .team-score { color: rgba(255, 255, 255, 0.95); }
+  .team.away .team-score { color: rgba(255, 255, 255, 0.95); }
   .team-score.bump {
     animation: scoreBump 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   @keyframes scoreBump {
     0% { transform: scale(1); }
-    40% { transform: scale(1.18); filter: drop-shadow(0 0 22px rgba(255, 77, 46, 0.5)); }
+    40% { transform: scale(1.12); filter: drop-shadow(0 0 28px rgba(255, 255, 255, 0.6)); }
     100% { transform: scale(1); }
   }
 
   .point-controls {
-    display: flex; flex-direction: column; gap: 6px;
-    width: 110px;
+    display: flex; flex-direction: column; gap: 5px;
+    width: 100%;
   }
   .point-btn {
     flex: 1;
-    padding: 12px 8px;
-    border: 1px solid var(--border);
+    padding: 11px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 12px;
-    color: var(--text);
+    color: rgba(255, 255, 255, 0.92);
     font-family: 'Anton', sans-serif;
-    font-size: 22px;
+    font-size: 20px;
     cursor: pointer;
     transition: all 0.12s ease;
     display: flex; align-items: center; justify-content: center;
-    background: var(--bg-elev);
+    background: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(4px);
   }
-  .team.home .point-btn.primary {
-    background: linear-gradient(135deg, var(--home), color-mix(in srgb, var(--home) 60%, #000));
-    border-color: transparent; color: #fff;
-    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
-  }
+  .team.home .point-btn.primary,
   .team.away .point-btn.primary {
-    background: linear-gradient(135deg, var(--away), color-mix(in srgb, var(--away) 60%, #000));
-    border-color: transparent; color: #fff;
-    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.22);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
   .point-btn:active { transform: scale(0.94); }
   .point-btn.minus {
-    flex: 0 0 38px;
     font-family: inherit;
-    font-size: 18px;
-    color: var(--text-muted);
-    background: transparent;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.65);
+    background: rgba(0, 0, 0, 0.12);
+    border-color: rgba(255, 255, 255, 0.18);
   }
   .points-grid-3 {
     display: grid; grid-template-columns: 1fr 1fr 1fr;
@@ -297,13 +357,13 @@
 
   /* Divider */
   .divider {
-    height: 2px;
-    background: linear-gradient(90deg,
+    width: 2px; height: auto;
+    background: linear-gradient(180deg,
       transparent 0%,
-      var(--home) 30%,
-      var(--away) 70%,
+      rgba(255, 255, 255, 0.5) 20%,
+      rgba(255, 255, 255, 0.5) 80%,
       transparent 100%);
-    opacity: 0.6;
+    opacity: 0.7;
   }
 
   /* Bottom action bar */
@@ -642,57 +702,7 @@
       <div class="winner-score" id="winner-score">2 — 0</div>
       <div class="match-over-actions">
         <button class="match-over-btn primary" id="btn-rematch">New match</button>
-        <button class="match-over-btn" id="btn-export">Export PDF</button>
         <button class="match-over-btn" id="btn-keep">Keep on screen</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Settings modal -->
-  <div class="match-over" id="settings-modal" style="display:none;">
-    <div class="match-over-card" style="max-width:340px">
-      <div style="font-size:28px;margin-bottom:6px">⚙️</div>
-      <div class="winner-label">SETTINGS</div>
-      <div style="height:14px"></div>
-
-      <div style="text-align:left;margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Volleyball — sets to win</div>
-        <div style="display:flex;gap:6px">
-          <button class="match-over-btn settings-chip" data-vb-bestof="3" style="flex:1">Best of 3</button>
-          <button class="match-over-btn settings-chip" data-vb-bestof="5" style="flex:1">Best of 5</button>
-        </div>
-      </div>
-
-      <div style="text-align:left;margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Volleyball — points per set</div>
-        <div style="display:flex;gap:6px">
-          <button class="match-over-btn settings-chip" data-vb-target="21" style="flex:1">21</button>
-          <button class="match-over-btn settings-chip" data-vb-target="25" style="flex:1">25</button>
-        </div>
-      </div>
-
-      <div style="text-align:left;margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Basketball — quarter length</div>
-        <div style="display:flex;gap:6px">
-          <button class="match-over-btn settings-chip" data-bb-clock="480" style="flex:1">8 min</button>
-          <button class="match-over-btn settings-chip" data-bb-clock="600" style="flex:1">10 min</button>
-          <button class="match-over-btn settings-chip" data-bb-clock="720" style="flex:1">12 min</button>
-        </div>
-      </div>
-
-      <div style="text-align:left;margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Soccer — half length</div>
-        <div style="display:flex;gap:6px">
-          <button class="match-over-btn settings-chip" data-sc-clock="1500" style="flex:1">25 min</button>
-          <button class="match-over-btn settings-chip" data-sc-clock="2700" style="flex:1">45 min</button>
-        </div>
-      </div>
-
-      <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:6px">
-        <div class="match-over-actions">
-          <button class="match-over-btn primary" id="btn-settings-save">Save</button>
-          <button class="match-over-btn" id="btn-settings-close">Cancel</button>
-        </div>
       </div>
     </div>
   </div>
@@ -782,10 +792,68 @@
     t._timer = setTimeout(() => t.classList.remove('show'), 2200);
   }
 
+
+  // ── 7-segment SVG (LED scoreboard style) ──────────────────────────────
+  // Digit cell: 50 wide × 90 tall, segment thickness T=9, gap G=2, bevel B=3
+  const _S7 = (() => {
+    // Wide short digits (aspect ~0.85:1) prevent the "2×2 blocks" look
+    const DW=65, DH=80, T=12, G=1.5, B=4;
+    const aY=0, gY=(DH-T)/2, dY=DH-T;
+    const fSY=T+G, fEY=gY-G, vH=fEY-fSY;
+    const eSY=gY+T+G, eEY=dY-G;
+    const lX=0, rX=DW-T;
+
+    function h(y){
+      return `${B},${y} ${DW-B},${y} ${DW},${y+T/2} ${DW-B},${y+T} ${B},${y+T} 0,${y+T/2}`;
+    }
+    function v(x,y,ht){
+      return `${x+T/2},${y} ${x+T},${y+B} ${x+T},${y+ht-B} ${x+T/2},${y+ht} ${x},${y+ht-B} ${x},${y+B}`;
+    }
+    const segs = {
+      a:h(aY), g:h(gY), d:h(dY),
+      f:v(lX,fSY,vH), b:v(rX,fSY,vH),
+      e:v(lX,eSY,eEY-eSY), c:v(rX,eSY,eEY-eSY)
+    };
+    const on = {
+      '0':'abcdef','1':'bc','2':'abdeg','3':'abcdg',
+      '4':'bcfg',  '5':'acdfg','6':'acdefg','7':'abc',
+      '8':'abcdefg','9':'abcdfg'
+    };
+    return { segs, on, DW, DH };
+  })();
+
+  function seg7SVG(value, litColor, dimColor) {
+    const {segs, on, DW, DH} = _S7;
+    const GAP = 10;
+    const digits = String(value).padStart(2,'0').split('');
+    const W = digits.length * DW + (digits.length-1) * GAP;
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${DH}">`;
+    digits.forEach((d,i) => {
+      const ox = i*(DW+GAP);
+      const active = on[d] || '';
+      svg += `<g transform="translate(${ox},0)">`;
+      for (const [s, pts] of Object.entries(segs)) {
+        svg += `<polygon points="${pts}" fill="${active.includes(s)?litColor:dimColor}"/>`;
+      }
+      svg += `</g>`;
+    });
+    return svg + `</svg>`;
+  }
+  // ──────────────────────────────────────────────────────────────────────
+
+  function renderScores() {
+    if (activeSport === 'basketball') {
+      $('home-score').textContent = String(state.home).padStart(2, '0');
+      $('away-score').textContent = String(state.away).padStart(2, '0');
+    } else {
+      $('home-score').textContent = state.home;
+      $('away-score').textContent = state.away;
+    }
+  }
+
   // Render
   function render() {
-    $('home-score').textContent = state.home;
-    $('away-score').textContent = state.away;
+    renderScores();
     $('home-name').value = state.homeName;
     $('away-name').value = state.awayName;
 
@@ -853,9 +921,7 @@
     const clockEl = $('clock');
     if (!cfg.hasClock) {
       clockEl.classList.add('hidden');
-      // Only stop the interval; do NOT call renderClock again (would recurse).
-      if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
-      clockRunning = false;
+      stopClock();
       return;
     }
     clockEl.classList.remove('hidden');
@@ -912,18 +978,7 @@
   function stopClock() {
     if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
     clockRunning = false;
-    // Update the clock UI directly without re-entering renderClock when the
-    // sport has no clock (which would recurse infinitely).
-    const cfg = sportCfg();
-    const clockEl = $('clock');
-    if (cfg.hasClock) {
-      const m = Math.floor(clockSeconds / 60).toString().padStart(2, '0');
-      const s = (clockSeconds % 60).toString().padStart(2, '0');
-      clockEl.textContent = `${m}:${s}`;
-      clockEl.classList.remove('running');
-    } else if (clockEl) {
-      clockEl.classList.add('hidden');
-    }
+    renderClock();
   }
 
   // Actions
@@ -1111,246 +1166,40 @@
   $('away-name').addEventListener('change', e => state.awayName = e.target.value || 'Away');
   $('home-name').addEventListener('blur', e => { if (!e.target.value) e.target.value = state.homeName; });
   $('away-name').addEventListener('blur', e => { if (!e.target.value) e.target.value = state.awayName; });
+  // Tap team panel → add 1 point (volleyball only)
+  // Swipe left on a team panel → subtract 1 point (basketball only)
+  ['home','away'].forEach(team => {
+    const panel = document.querySelector(`.team.${team}`);
+    let swipeStartX = null, swipeStartY = null;
+    panel.addEventListener('touchstart', e => {
+      swipeStartX = e.touches[0].clientX;
+      swipeStartY = e.touches[0].clientY;
+    }, { passive: true });
+    panel.addEventListener('touchend', e => {
+      if (swipeStartX === null) return;
+      const dx = e.changedTouches[0].clientX - swipeStartX;
+      const dy = e.changedTouches[0].clientY - swipeStartY;
+      if (activeSport === 'basketball' && dx < -50 && Math.abs(dy) < 60) {
+        subtractPoint(team);
+      } else if (activeSport === 'volleyball' && Math.abs(dx) < 20 && Math.abs(dy) < 20) {
+        addPoints(team, 1);
+      }
+      swipeStartX = null; swipeStartY = null;
+    }, { passive: true });
+  });
+
   $('upgrade-banner').addEventListener('click', () => {
-    // Saves the current match to localStorage and links to Pro signup
-    saveMatchSnapshot();
-    location.href = 'app.html?upgrade=lite';
+    showToast('Upgrade flow → would open in real app');
   });
   $('ad-banner').addEventListener('click', () => {
     showToast('Ad tap → would open advertiser link');
   });
-
-  // ============================================================
-  // SETTINGS — persisted in localStorage
-  // ============================================================
-  const SETTINGS_KEY = 'rallyscore_lite_settings_v1';
-  const STATE_KEY = 'rallyscore_lite_state_v1';
-  const MATCH_HISTORY_KEY = 'rallyscore_lite_history_v1';
-
-  const DEFAULT_SETTINGS = {
-    vbBestOf: 3,
-    vbTarget: 25,
-    bbClock: 600,
-    scClock: 2700,
-  };
-
-  let settings = loadSettings();
-
-  function loadSettings() {
-    try {
-      const raw = localStorage.getItem(SETTINGS_KEY);
-      if (!raw) return { ...DEFAULT_SETTINGS };
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-    } catch { return { ...DEFAULT_SETTINGS }; }
-  }
-  function persistSettings() {
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {}
-  }
-  function applySettingsToSports() {
-    SPORTS.volleyball.periodMax = settings.vbBestOf;
-    SPORTS.volleyball.target = settings.vbTarget;
-    SPORTS.basketball.clockStart = settings.bbClock;
-    SPORTS.soccer.clockMax = settings.scClock;
-    // Re-render set dots if currently in volleyball
-    const homeDots = $('home-sets');
-    const awayDots = $('away-sets');
-    if (homeDots && awayDots) {
-      const setsToShow = Math.ceil(settings.vbBestOf / 2);
-      // (We keep 3 dots in HTML; they map to setsToWin)
-      // Just ensure the count visualizer is right via state
-    }
-  }
-  applySettingsToSports();
-
-  function refreshSettingsUI() {
-    document.querySelectorAll('.settings-chip').forEach(c => c.classList.remove('selected'));
-    document.querySelectorAll('[data-vb-bestof]').forEach(c => {
-      if (parseInt(c.dataset.vbBestof, 10) === settings.vbBestOf) c.classList.add('selected');
-    });
-    document.querySelectorAll('[data-vb-target]').forEach(c => {
-      if (parseInt(c.dataset.vbTarget, 10) === settings.vbTarget) c.classList.add('selected');
-    });
-    document.querySelectorAll('[data-bb-clock]').forEach(c => {
-      if (parseInt(c.dataset.bbClock, 10) === settings.bbClock) c.classList.add('selected');
-    });
-    document.querySelectorAll('[data-sc-clock]').forEach(c => {
-      if (parseInt(c.dataset.scClock, 10) === settings.scClock) c.classList.add('selected');
-    });
-  }
-
-  // Style for selected chips (injected once)
-  (function injectChipStyle() {
-    const s = document.createElement('style');
-    s.textContent = `
-      .settings-chip.selected { background: var(--gradient) !important; border-color: transparent !important; color: white !important; }
-      .settings-chip { transition: all 0.15s; font-weight: 600; font-size: 13px; }
-    `;
-    document.head.appendChild(s);
-  })();
-
   $('btn-settings').addEventListener('click', () => {
-    refreshSettingsUI();
-    $('settings-modal').style.display = 'grid';
-    $('settings-modal').classList.add('active');
-  });
-  $('btn-settings-close').addEventListener('click', () => {
-    $('settings-modal').classList.remove('active');
-    $('settings-modal').style.display = 'none';
-  });
-  document.querySelectorAll('.settings-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      // Mutually exclusive within each group
-      const groupKeys = ['vbBestof','vbTarget','bbClock','scClock'];
-      groupKeys.forEach(k => {
-        if (chip.dataset[k] !== undefined) {
-          document.querySelectorAll(`[data-${k.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())}]`).forEach(c => c.classList.remove('selected'));
-          chip.classList.add('selected');
-        }
-      });
-    });
-  });
-  $('btn-settings-save').addEventListener('click', () => {
-    const sel = (sel) => document.querySelector(`.settings-chip.selected[${sel}]`);
-    const vb = sel('data-vb-bestof');
-    const vt = sel('data-vb-target');
-    const bb = sel('data-bb-clock');
-    const sc = sel('data-sc-clock');
-    if (vb) settings.vbBestOf = parseInt(vb.dataset.vbBestof, 10);
-    if (vt) settings.vbTarget = parseInt(vt.dataset.vbTarget, 10);
-    if (bb) settings.bbClock = parseInt(bb.dataset.bbClock, 10);
-    if (sc) settings.scClock = parseInt(sc.dataset.scClock, 10);
-    persistSettings();
-    applySettingsToSports();
-    setupClockForCurrentSport();
-    render();
-    showToast('Settings saved');
-    $('settings-modal').classList.remove('active');
-    $('settings-modal').style.display = 'none';
+    showToast('Settings → team colors, clock duration, etc.');
   });
 
-  // ============================================================
-  // STATE PERSISTENCE — restore on reload
-  // ============================================================
-  function persistState() {
-    try {
-      localStorage.setItem(STATE_KEY, JSON.stringify({
-        sport: activeSport,
-        state,
-        clockSeconds,
-        ts: Date.now(),
-      }));
-    } catch {}
-  }
-  function restoreState() {
-    try {
-      const raw = localStorage.getItem(STATE_KEY);
-      if (!raw) return false;
-      const saved = JSON.parse(raw);
-      if (!saved || !saved.state) return false;
-      // Only restore if less than 24 hours old
-      if (Date.now() - (saved.ts || 0) > 24 * 60 * 60 * 1000) return false;
-      activeSport = saved.sport || 'volleyball';
-      state = saved.state;
-      clockSeconds = saved.clockSeconds || 0;
-      document.getElementById('app').dataset.sport = activeSport;
-      document.querySelectorAll('.sport-tab').forEach(t => {
-        t.classList.toggle('active', t.dataset.sport === activeSport);
-      });
-      return true;
-    } catch { return false; }
-  }
-
-  // Auto-save state on every render
-  const originalRender = render;
-  render = function() {
-    originalRender();
-    persistState();
-  };
-
-  // ============================================================
-  // EXPORT — generate a printable summary (uses window.print)
-  // ============================================================
-  function exportMatchPDF() {
-    const sH = setsHome(), sA = setsAway();
-    const winner = activeSport === 'volleyball'
-      ? (sH > sA ? state.homeName : sA > sH ? state.awayName : 'Draw')
-      : (state.home > state.away ? state.homeName : state.away > state.home ? state.awayName : 'Draw');
-    const finalScore = activeSport === 'volleyball'
-      ? `${Math.max(sH, sA)} — ${Math.min(sH, sA)}`
-      : `${state.home} — ${state.away}`;
-    const date = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
-    const setsHTML = state.setsHistory.map((s, i) => `<tr><td>Set ${i + 1}</td><td>${s[0]}</td><td>${s[1]}</td><td>${s[0] > s[1] ? state.homeName : state.awayName}</td></tr>`).join('');
-
-    const html = `<!DOCTYPE html><html><head><title>Match Summary — ${state.homeName} vs ${state.awayName}</title>
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 700px; margin: 40px auto; padding: 0 24px; color: #1a1a1a; }
-        h1 { font-size: 28px; margin: 0 0 4px; }
-        .sub { color: #666; margin-bottom: 30px; font-size: 14px; }
-        .winner-box { background: linear-gradient(135deg, #FF4D2E, #FF8A00); color: white; padding: 24px; border-radius: 14px; text-align: center; margin: 24px 0; }
-        .winner-name { font-size: 32px; font-weight: 800; margin-bottom: 4px; }
-        .winner-score { font-size: 18px; opacity: 0.92; }
-        .matchup { font-size: 18px; margin-bottom: 18px; font-weight: 600; }
-        table { width: 100%; border-collapse: collapse; margin-top: 14px; }
-        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
-        th { background: #f5f5f7; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.06em; }
-        .footer { margin-top: 40px; color: #888; font-size: 11px; text-align: center; }
-      </style></head>
-      <body>
-        <h1>Match Summary</h1>
-        <div class="sub">${SPORTS[activeSport].icon} ${SPORTS[activeSport].name} · ${date}</div>
-        <div class="matchup">${state.homeName} vs ${state.awayName}</div>
-        <div class="winner-box">
-          <div class="winner-name">🏆 ${winner}</div>
-          <div class="winner-score">${finalScore}</div>
-        </div>
-        ${activeSport === 'volleyball' && setsHTML ? `<table><thead><tr><th></th><th>${state.homeName}</th><th>${state.awayName}</th><th>Winner</th></tr></thead><tbody>${setsHTML}</tbody></table>` : ''}
-        <div class="footer">Generated by RallyScore Lite · rallyscore.com</div>
-      </body></html>`;
-
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const w = window.open(url, '_blank');
-    if (!w) {
-      showToast('Pop-ups blocked — allow them to export');
-      return;
-    }
-    w.onload = () => {
-      try { w.print(); } catch { /* user can use Cmd+P */ }
-    };
-  }
-
-  $('btn-export').addEventListener('click', exportMatchPDF);
-
-  // ============================================================
-  // SAVE FOR PRO — used when user taps "Go Live with Pro"
-  // ============================================================
-  function saveMatchSnapshot() {
-    try {
-      const history = JSON.parse(localStorage.getItem(MATCH_HISTORY_KEY) || '[]');
-      history.unshift({
-        id: 'lite_' + Date.now(),
-        sport: activeSport,
-        homeName: state.homeName,
-        awayName: state.awayName,
-        homeScore: state.home,
-        awayScore: state.away,
-        sets: state.setsHistory,
-        finishedAt: state.matchOver ? new Date().toISOString() : null,
-        savedAt: new Date().toISOString(),
-      });
-      localStorage.setItem(MATCH_HISTORY_KEY, JSON.stringify(history.slice(0, 30)));
-    } catch {}
-  }
-
-  // ============================================================
-  // INIT
-  // ============================================================
+  // Init
   $('btn-undo').disabled = true;
-  // Try to restore previous match
-  const restored = restoreState();
-  if (restored) {
-    showToast('Resumed previous match');
-  }
   setupClockForCurrentSport();
   render();
 </script>
