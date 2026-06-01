@@ -208,10 +208,13 @@
   [data-sport="basketball"] .set-dot   { background: rgba(255,255,255,0.15); }
   /* Hide the −1 button in basketball; use undo instead */
   [data-sport="basketball"] .point-btn.minus { display: none; }
-  /* Volleyball: hide all point buttons — tap the panel to score */
-  [data-sport="volleyball"] .point-controls { display: none; }
-  [data-sport="volleyball"] .point-btn.minus { display: none; }
-  [data-sport="volleyball"] .team { cursor: pointer; }
+  /* Volleyball & Soccer: hide all point buttons — tap the panel to score */
+  [data-sport="volleyball"] .point-controls,
+  [data-sport="soccer"]     .point-controls { display: none; }
+  [data-sport="volleyball"] .point-btn.minus,
+  [data-sport="soccer"]     .point-btn.minus { display: none; }
+  [data-sport="volleyball"] .team,
+  [data-sport="soccer"]     .team { cursor: pointer; }
 
   /* Score: DSEG7-Classic font — matches reference image exactly */
   [data-sport="basketball"] .team-score {
@@ -1247,26 +1250,41 @@
   $('away-name').addEventListener('change', e => state.awayName = e.target.value || 'Away');
   $('home-name').addEventListener('blur', e => { if (!e.target.value) e.target.value = state.homeName; });
   $('away-name').addEventListener('blur', e => { if (!e.target.value) e.target.value = state.awayName; });
-  // Tap team panel → add 1 point (volleyball only)
-  // Swipe left on a team panel → subtract 1 point (basketball only)
+  // Tap team panel → add 1 point (volleyball & soccer)
+  // Swipe left on team panel → subtract 1 point (all sports)
   ['home','away'].forEach(team => {
     const panel = document.querySelector(`.team.${team}`);
     let swipeStartX = null, swipeStartY = null;
+    let lastTapTime = 0;
+
     panel.addEventListener('touchstart', e => {
       swipeStartX = e.touches[0].clientX;
       swipeStartY = e.touches[0].clientY;
     }, { passive: true });
+
     panel.addEventListener('touchend', e => {
       if (swipeStartX === null) return;
       const dx = e.changedTouches[0].clientX - swipeStartX;
       const dy = e.changedTouches[0].clientY - swipeStartY;
+      const now = Date.now();
+      const isTap = Math.abs(dx) < 20 && Math.abs(dy) < 20;
+
+      // Block double-tap zoom: if second tap within 350ms, consume it
+      if (isTap && now - lastTapTime < 350) {
+        e.preventDefault();
+        lastTapTime = 0;
+        swipeStartX = null; swipeStartY = null;
+        return;
+      }
+      if (isTap) lastTapTime = now;
+
       if (dx < -50 && Math.abs(dy) < 60) {
         subtractPoint(team);
-      } else if (activeSport === 'volleyball' && Math.abs(dx) < 20 && Math.abs(dy) < 20) {
+      } else if ((activeSport === 'volleyball' || activeSport === 'soccer') && isTap) {
         addPoints(team, 1);
       }
       swipeStartX = null; swipeStartY = null;
-    }, { passive: true });
+    }, { passive: false }); // passive:false needed for preventDefault on double-tap
   });
 
   $('upgrade-banner').addEventListener('click', () => {
