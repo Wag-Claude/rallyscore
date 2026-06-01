@@ -650,6 +650,137 @@
     /* Hide ads in landscape — no vertical space */
     .ad-banner, .upgrade-banner { display: none; }
   }
+
+  /* ── Light theme ─────────────────────────────────────── */
+  body.theme-light {
+    background: #E8EBF5;
+    --bg: #F0F2FA; --bg-elev: #FFFFFF; --bg-elev-2: #E4E8F4;
+    --border: #CDD3E8; --text: #1A1E32;
+    --text-muted: #5A6280; --text-dim: #8A93AD;
+  }
+  body.theme-light .team-score { text-shadow: 0 4px 24px rgba(0,0,0,0.12); }
+  body.theme-light .toast { box-shadow: 0 8px 24px rgba(0,0,80,0.12); }
+  body.theme-light .match-over { background: rgba(240,242,250,0.93); }
+
+  /* ── Settings sheet ──────────────────────────────────── */
+  .settings-overlay {
+    position: absolute; inset: 0;
+    background: rgba(5,6,13,0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 400;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .settings-overlay.open { opacity: 1; pointer-events: all; }
+
+  .settings-sheet {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: var(--bg);
+    border-radius: 20px 20px 0 0;
+    border-top: 1px solid var(--border);
+    z-index: 401;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    max-height: 88%;
+    display: flex; flex-direction: column;
+  }
+  .settings-sheet.open { transform: translateY(0); }
+
+  .settings-handle {
+    width: 36px; height: 4px; border-radius: 2px;
+    background: var(--border); margin: 10px auto 0;
+    flex-shrink: 0;
+  }
+  .settings-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .settings-title { font-size: 15px; font-weight: 800; }
+  .settings-close {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--bg-elev-2); border: none;
+    color: var(--text-muted); font-size: 13px;
+    cursor: pointer; display: grid; place-items: center;
+    font-family: inherit;
+  }
+  .settings-body {
+    overflow-y: auto; flex: 1;
+    padding: 8px 0 calc(16px + var(--safe-bottom));
+  }
+
+  .settings-section { margin-bottom: 4px; }
+  .settings-section-label {
+    font-size: 10px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--text-dim);
+    padding: 10px 18px 4px;
+  }
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 18px;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row-info { flex: 1; min-width: 0; }
+  .settings-row-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .settings-row-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+  /* Toggle switch */
+  .toggle { position: relative; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle-track {
+    display: block; width: 44px; height: 26px;
+    background: var(--bg-elev-2); border-radius: 13px;
+    border: 1px solid var(--border);
+    cursor: pointer; transition: background 0.2s, border-color 0.2s;
+    position: relative;
+  }
+  .toggle-track::after {
+    content: ''; position: absolute;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #fff; top: 2px; left: 2px;
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  }
+  .toggle input:checked + .toggle-track {
+    background: var(--accent); border-color: var(--accent);
+  }
+  .toggle input:checked + .toggle-track::after {
+    transform: translateX(18px);
+  }
+
+  /* Segmented control */
+  .seg-ctrl {
+    display: flex; border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--bg-elev-2);
+    overflow: hidden; flex-shrink: 0;
+  }
+  .seg-btn {
+    flex: 1; padding: 5px 10px;
+    font-size: 11px; font-weight: 700;
+    background: none; border: none;
+    color: var(--text-muted);
+    cursor: pointer; font-family: inherit;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .seg-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-radius: 8px;
+  }
+
+  /* Color picker */
+  .color-pick {
+    width: 36px; height: 36px; border-radius: 9px;
+    border: 2px solid var(--border);
+    cursor: pointer; padding: 2px;
+    background: none; flex-shrink: 0;
+  }
 </style>
 </head>
 <body>
@@ -803,11 +934,308 @@
     </div>
   </div>
 
+  <!-- Settings overlay + sheet -->
+  <div class="settings-overlay" id="settings-overlay"></div>
+  <div class="settings-sheet" id="settings-sheet">
+    <div class="settings-handle"></div>
+    <div class="settings-header">
+      <span class="settings-title" data-i18n="settings">Settings</span>
+      <button class="settings-close" id="settings-close">✕</button>
+    </div>
+    <div class="settings-body">
+
+      <!-- General -->
+      <div class="settings-section">
+        <div class="settings-section-label" data-i18n="general">General</div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-title" data-i18n="keepScreenOn">Keep screen on</div>
+            <div class="settings-row-sub" data-i18n="keepScreenOnSub">Prevents device from sleeping during a match</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="s-keep-screen"><span class="toggle-track"></span></label>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-title" data-i18n="language">Language</div>
+          </div>
+          <div class="seg-ctrl" id="s-language">
+            <button class="seg-btn active" data-val="en">EN</button>
+            <button class="seg-btn" data-val="es">ES</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-title" data-i18n="theme">Theme</div>
+          </div>
+          <div class="seg-ctrl" id="s-theme">
+            <button class="seg-btn active" data-val="dark">🌙 Dark</button>
+            <button class="seg-btn" data-val="light">☀️ Light</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Volleyball -->
+      <div class="settings-section">
+        <div class="settings-section-label">🏐 <span data-i18n="volleyball">Volleyball</span></div>
+        <div class="settings-row">
+          <div class="settings-row-info"><div class="settings-row-title" data-i18n="format">Format</div></div>
+          <div class="seg-ctrl" id="s-vb-format">
+            <button class="seg-btn" data-val="3" data-i18n="bestOf3">Best of 3</button>
+            <button class="seg-btn active" data-val="5" data-i18n="bestOf5">Best of 5</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info"><div class="settings-row-title" data-i18n="pointsPerSet">Points per set</div></div>
+          <div class="seg-ctrl" id="s-vb-points">
+            <button class="seg-btn" data-val="21">21</button>
+            <button class="seg-btn active" data-val="25">25</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info"><div class="settings-row-title" data-i18n="homeColor">Home color</div></div>
+          <input type="color" class="color-pick" id="s-vb-home" value="#FF4D2E">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info"><div class="settings-row-title" data-i18n="awayColor">Away color</div></div>
+          <input type="color" class="color-pick" id="s-vb-away" value="#4D8DFF">
+        </div>
+      </div>
+
+      <!-- Basketball -->
+      <div class="settings-section">
+        <div class="settings-section-label">🏀 <span data-i18n="basketball">Basketball</span></div>
+        <div class="settings-row">
+          <div class="settings-row-info"><div class="settings-row-title" data-i18n="format">Format</div></div>
+          <div class="seg-ctrl" id="s-bb-format">
+            <button class="seg-btn active" data-val="4" data-i18n="quarters4">4 Quarters</button>
+            <button class="seg-btn" data-val="2" data-i18n="halves2">2 Halves</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info"><div class="settings-row-title" data-i18n="periodDuration">Period duration</div></div>
+          <div class="seg-ctrl" id="s-bb-duration">
+            <button class="seg-btn" data-val="8">8 min</button>
+            <button class="seg-btn active" data-val="10">10 min</button>
+            <button class="seg-btn" data-val="12">12 min</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info"><div class="settings-row-title" data-i18n="homeColor">Home color</div></div>
+          <input type="color" class="color-pick" id="s-bb-home" value="#FF8A00">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info"><div class="settings-row-title" data-i18n="awayColor">Away color</div></div>
+          <input type="color" class="color-pick" id="s-bb-away" value="#4D8DFF">
+        </div>
+      </div>
+
+      <!-- Table Tennis -->
+      <div class="settings-section">
+        <div class="settings-section-label">🏓 <span data-i18n="tabletennis">Table Tennis</span></div>
+        <div class="settings-row">
+          <div class="settings-row-info"><div class="settings-row-title" data-i18n="format">Format</div></div>
+          <div class="seg-ctrl" id="s-tt-format">
+            <button class="seg-btn" data-val="3" data-i18n="bestOf3">Best of 3</button>
+            <button class="seg-btn active" data-val="5" data-i18n="bestOf5">Best of 5</button>
+            <button class="seg-btn" data-val="7" data-i18n="bestOf7">Best of 7</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info"><div class="settings-row-title" data-i18n="pointsPerGame">Points per game</div></div>
+          <div class="seg-ctrl" id="s-tt-points">
+            <button class="seg-btn active" data-val="11">11</button>
+            <button class="seg-btn" data-val="21">21</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info"><div class="settings-row-title" data-i18n="homeColor">Home color</div></div>
+          <input type="color" class="color-pick" id="s-tt-home" value="#E53935">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info"><div class="settings-row-title" data-i18n="awayColor">Away color</div></div>
+          <input type="color" class="color-pick" id="s-tt-away" value="#1E88E5">
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
+  // ── Translations ────────────────────────────────────────
+  const STRINGS = {
+    en: {
+      settings:'Settings', general:'General', keepScreenOn:'Keep screen on',
+      keepScreenOnSub:'Prevents device from sleeping during a match',
+      language:'Language', theme:'Theme',
+      homeColor:'Home color', awayColor:'Away color',
+      format:'Format', pointsPerSet:'Points per set', periodDuration:'Period duration',
+      pointsPerGame:'Points per game',
+      bestOf3:'Best of 3', bestOf5:'Best of 5', bestOf7:'Best of 7',
+      quarters4:'4 Quarters', halves2:'2 Halves',
+      volleyball:'Volleyball', basketball:'Basketball', tabletennis:'Table Tennis',
+      home:'Home', away:'Away',
+      next:'Next', end:'End', undo:'Undo', swap:'Swap', reset:'Reset',
+      newMatch:'New match', keepOnScreen:'Keep on screen',
+      matchWinner:'MATCH WINNER',
+      resetConfirm:'Reset the match? All scores will be cleared.',
+      endConfirm:'End the match now?'
+    },
+    es: {
+      settings:'Ajustes', general:'General', keepScreenOn:'Mantener pantalla encendida',
+      keepScreenOnSub:'Evita que el dispositivo se bloquee durante el partido',
+      language:'Idioma', theme:'Tema',
+      homeColor:'Color local', awayColor:'Color visitante',
+      format:'Formato', pointsPerSet:'Puntos por set', periodDuration:'Duración del período',
+      pointsPerGame:'Puntos por juego',
+      bestOf3:'Mejor de 3', bestOf5:'Mejor de 5', bestOf7:'Mejor de 7',
+      quarters4:'4 Cuartos', halves2:'2 Tiempos',
+      volleyball:'Voleibol', basketball:'Baloncesto', tabletennis:'Tenis de Mesa',
+      home:'Local', away:'Visitante',
+      next:'Siguiente', end:'Fin', undo:'Deshacer', swap:'Cambiar', reset:'Reiniciar',
+      newMatch:'Nuevo partido', keepOnScreen:'Mantener en pantalla',
+      matchWinner:'GANADOR DEL PARTIDO',
+      resetConfirm:'¿Reiniciar el partido? Se borrarán todos los puntos.',
+      endConfirm:'¿Finalizar el partido ahora?'
+    }
+  };
+
+  // ── Settings state ───────────────────────────────────────
+  const DEFAULT_SETTINGS = {
+    keepScreenOn: false, language: 'en', theme: 'dark',
+    volleyball:   { format: 5, points: 25, homeColor: '#FF4D2E', awayColor: '#4D8DFF' },
+    basketball:   { format: 4, duration: 10, homeColor: '#FF8A00', awayColor: '#4D8DFF' },
+    tabletennis:  { format: 5, points: 11,  homeColor: '#E53935', awayColor: '#1E88E5' }
+  };
+
+  let appSettings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+  try {
+    const saved = localStorage.getItem('rs-settings');
+    if (saved) appSettings = Object.assign(JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), JSON.parse(saved));
+  } catch(e) {}
+
+  function saveSettings() {
+    try { localStorage.setItem('rs-settings', JSON.stringify(appSettings)); } catch(e) {}
+  }
+
+  // ── Wake Lock ────────────────────────────────────────────
+  let wakeLock = null;
+  async function applyWakeLock(enabled) {
+    if (enabled && 'wakeLock' in navigator) {
+      try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+    } else if (wakeLock) {
+      try { await wakeLock.release(); } catch(e) {}
+      wakeLock = null;
+    }
+  }
+  // Re-acquire wake lock if page becomes visible again
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && appSettings.keepScreenOn) applyWakeLock(true);
+  });
+
+  // ── Theme ────────────────────────────────────────────────
+  function applyTheme(theme) {
+    document.body.classList.toggle('theme-light', theme === 'light');
+  }
+
+  // ── Colors (dynamic <style> override) ────────────────────
+  function applyColors() {
+    let el = document.getElementById('custom-sport-colors');
+    if (!el) { el = document.createElement('style'); el.id = 'custom-sport-colors'; document.head.appendChild(el); }
+    const vb = appSettings.volleyball, bb = appSettings.basketball, tt = appSettings.tabletennis;
+    el.textContent = `
+      [data-sport="volleyball"]  { --home:${vb.homeColor}; --away:${vb.awayColor}; }
+      [data-sport="basketball"]  { --home:${bb.homeColor}; --away:${bb.awayColor}; }
+      [data-sport="tabletennis"] { --home:${tt.homeColor}; --away:${tt.awayColor}; }
+    `;
+  }
+
+  // ── Language / i18n ──────────────────────────────────────
+  function t(key) { return (STRINGS[appSettings.language] || STRINGS.en)[key] || key; }
+
+  function applyLanguage() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if (el.tagName === 'INPUT') el.placeholder = t(key);
+      else el.textContent = t(key);
+    });
+    // Dynamic sport tab labels
+    document.querySelector('.sport-tab[data-sport="volleyball"] [data-i18n]') &&
+      (document.querySelector('.sport-tab[data-sport="volleyball"]').lastChild.textContent = ' ' + t('volleyball'));
+    document.querySelector('.sport-tab[data-sport="basketball"]').lastChild.textContent = ' ' + t('basketball');
+    document.querySelector('.sport-tab[data-sport="tabletennis"]').lastChild.textContent = ' ' + t('tabletennis');
+    // Action buttons
+    document.querySelector('#btn-undo').lastChild.textContent = ' ' + t('undo');
+    document.querySelector('#btn-swap').lastChild.textContent = ' ' + t('swap');
+    document.querySelector('#btn-reset').lastChild.textContent = ' ' + t('reset');
+    $('btn-next-period').childNodes[0].textContent = t('next') + ' ';
+    $('btn-end-match').textContent = t('end');
+    $('btn-rematch').textContent = t('newMatch');
+    $('btn-keep').textContent = t('keepOnScreen');
+    $('winner-label') && ($('winner-label').textContent = t('matchWinner'));
+    // Team name placeholders
+    $('home-name').placeholder = t('home');
+    $('away-name').placeholder = t('away');
+  }
+
+  // ── Apply sport config from settings ─────────────────────
+  function applySettingsToSports() {
+    const vb = appSettings.volleyball;
+    SPORTS.volleyball.periodMax  = vb.format;
+    SPORTS.volleyball.target     = vb.points;
+    SPORTS.volleyball.targetFinal = vb.points === 25 ? 15 : 11;
+
+    const bb = appSettings.basketball;
+    SPORTS.basketball.periodMax   = bb.format;
+    SPORTS.basketball.clockStart  = bb.duration * 60;
+    SPORTS.basketball.periodLabel = bb.format === 4 ? (appSettings.language === 'es' ? 'Cuarto' : 'Quarter')
+                                                    : (appSettings.language === 'es' ? 'Tiempo' : 'Half');
+
+    const tt = appSettings.tabletennis;
+    SPORTS.tabletennis.periodMax = tt.format;
+    SPORTS.tabletennis.target    = tt.points;
+    SPORTS.tabletennis.targetFinal = tt.points;
+  }
+
+  // ── Settings UI helpers ──────────────────────────────────
+  function segSelect(ctrl, val) {
+    ctrl.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.val === String(val)));
+  }
+
+  function syncSettingsUI() {
+    $('s-keep-screen').checked = appSettings.keepScreenOn;
+    segSelect($('s-language'), appSettings.language);
+    segSelect($('s-theme'), appSettings.theme);
+    const vb = appSettings.volleyball;
+    segSelect($('s-vb-format'), vb.format);
+    segSelect($('s-vb-points'), vb.points);
+    $('s-vb-home').value = vb.homeColor;
+    $('s-vb-away').value = vb.awayColor;
+    const bb = appSettings.basketball;
+    segSelect($('s-bb-format'), bb.format);
+    segSelect($('s-bb-duration'), bb.duration);
+    $('s-bb-home').value = bb.homeColor;
+    $('s-bb-away').value = bb.awayColor;
+    const tt = appSettings.tabletennis;
+    segSelect($('s-tt-format'), tt.format);
+    segSelect($('s-tt-points'), tt.points);
+    $('s-tt-home').value = tt.homeColor;
+    $('s-tt-away').value = tt.awayColor;
+  }
+
+  function openSettings() {
+    syncSettingsUI();
+    $('settings-overlay').classList.add('open');
+    $('settings-sheet').classList.add('open');
+  }
+  function closeSettings() {
+    $('settings-overlay').classList.remove('open');
+    $('settings-sheet').classList.remove('open');
+  }
+
   // Sport configurations
   const SPORTS = {
     volleyball: {
@@ -1216,7 +1644,7 @@
   }
 
   function resetMatch() {
-    if (!confirm('Reset the match? All scores will be cleared.')) return;
+    if (!confirm(t('resetConfirm'))) return;
     state = freshState();
     state.homeName = $('home-name').value || 'Home';
     state.awayName = $('away-name').value || 'Away';
@@ -1297,7 +1725,7 @@
   $('btn-next-period').addEventListener('click', nextPeriod);
   $('btn-end-match').addEventListener('click', () => {
     if (state.matchOver) return;
-    if (!confirm('¿Finalizar el partido ahora?')) return;
+    if (!confirm(t('endConfirm'))) return;
     endMatch();
   });
   $('btn-reset').addEventListener('click', resetMatch);
@@ -1353,11 +1781,105 @@
   $('ad-banner').addEventListener('click', () => {
     showToast('Ad tap → would open advertiser link');
   });
-  $('btn-settings').addEventListener('click', () => {
-    showToast('Settings → team colors, clock duration, etc.');
+  $('btn-settings').addEventListener('click', openSettings);
+  $('settings-close').addEventListener('click', closeSettings);
+  $('settings-overlay').addEventListener('click', closeSettings);
+
+  // Keep screen on
+  $('s-keep-screen').addEventListener('change', e => {
+    appSettings.keepScreenOn = e.target.checked;
+    applyWakeLock(appSettings.keepScreenOn);
+    saveSettings();
   });
 
-  // Init
+  // Language
+  $('s-language').addEventListener('click', e => {
+    const btn = e.target.closest('.seg-btn'); if (!btn) return;
+    appSettings.language = btn.dataset.val;
+    segSelect($('s-language'), appSettings.language);
+    applySettingsToSports(); applyLanguage(); render(); saveSettings();
+  });
+
+  // Theme
+  $('s-theme').addEventListener('click', e => {
+    const btn = e.target.closest('.seg-btn'); if (!btn) return;
+    appSettings.theme = btn.dataset.val;
+    segSelect($('s-theme'), appSettings.theme);
+    applyTheme(appSettings.theme); saveSettings();
+  });
+
+  // Volleyball settings
+  $('s-vb-format').addEventListener('click', e => {
+    const btn = e.target.closest('.seg-btn'); if (!btn) return;
+    appSettings.volleyball.format = parseInt(btn.dataset.val);
+    segSelect($('s-vb-format'), appSettings.volleyball.format);
+    applySettingsToSports(); if (activeSport === 'volleyball') render(); saveSettings();
+  });
+  $('s-vb-points').addEventListener('click', e => {
+    const btn = e.target.closest('.seg-btn'); if (!btn) return;
+    appSettings.volleyball.points = parseInt(btn.dataset.val);
+    segSelect($('s-vb-points'), appSettings.volleyball.points);
+    applySettingsToSports(); saveSettings();
+  });
+  $('s-vb-home').addEventListener('input', e => {
+    appSettings.volleyball.homeColor = e.target.value;
+    applyColors(); saveSettings();
+  });
+  $('s-vb-away').addEventListener('input', e => {
+    appSettings.volleyball.awayColor = e.target.value;
+    applyColors(); saveSettings();
+  });
+
+  // Basketball settings
+  $('s-bb-format').addEventListener('click', e => {
+    const btn = e.target.closest('.seg-btn'); if (!btn) return;
+    appSettings.basketball.format = parseInt(btn.dataset.val);
+    segSelect($('s-bb-format'), appSettings.basketball.format);
+    applySettingsToSports(); if (activeSport === 'basketball') render(); saveSettings();
+  });
+  $('s-bb-duration').addEventListener('click', e => {
+    const btn = e.target.closest('.seg-btn'); if (!btn) return;
+    appSettings.basketball.duration = parseInt(btn.dataset.val);
+    segSelect($('s-bb-duration'), appSettings.basketball.duration);
+    applySettingsToSports(); if (activeSport === 'basketball') setupClockForCurrentSport(); saveSettings();
+  });
+  $('s-bb-home').addEventListener('input', e => {
+    appSettings.basketball.homeColor = e.target.value;
+    applyColors(); saveSettings();
+  });
+  $('s-bb-away').addEventListener('input', e => {
+    appSettings.basketball.awayColor = e.target.value;
+    applyColors(); saveSettings();
+  });
+
+  // Table Tennis settings
+  $('s-tt-format').addEventListener('click', e => {
+    const btn = e.target.closest('.seg-btn'); if (!btn) return;
+    appSettings.tabletennis.format = parseInt(btn.dataset.val);
+    segSelect($('s-tt-format'), appSettings.tabletennis.format);
+    applySettingsToSports(); if (activeSport === 'tabletennis') render(); saveSettings();
+  });
+  $('s-tt-points').addEventListener('click', e => {
+    const btn = e.target.closest('.seg-btn'); if (!btn) return;
+    appSettings.tabletennis.points = parseInt(btn.dataset.val);
+    segSelect($('s-tt-points'), appSettings.tabletennis.points);
+    applySettingsToSports(); saveSettings();
+  });
+  $('s-tt-home').addEventListener('input', e => {
+    appSettings.tabletennis.homeColor = e.target.value;
+    applyColors(); saveSettings();
+  });
+  $('s-tt-away').addEventListener('input', e => {
+    appSettings.tabletennis.awayColor = e.target.value;
+    applyColors(); saveSettings();
+  });
+
+  // Init — apply saved settings then render
+  applySettingsToSports();
+  applyTheme(appSettings.theme);
+  applyColors();
+  applyLanguage();
+  applyWakeLock(appSettings.keepScreenOn);
   $('btn-undo').disabled = true;
   setupClockForCurrentSport();
   render();
