@@ -32,7 +32,7 @@
     --safe-top: env(safe-area-inset-top, 0px);
   }
   [data-sport="basketball"] { --home: #FF8A00; --away: #4D8DFF; }
-  [data-sport="soccer"]     { --home: #00D67D; --away: #FF4D2E; }
+  [data-sport="tabletennis"] { --home: #E53935; --away: #1E88E5; }
   [data-sport="volleyball"] { --home: #FF4D2E; --away: #4D8DFF; }
 
   /* Prevent double-tap zoom on all elements */
@@ -200,8 +200,8 @@
   .team.away { background: var(--away); }
   [data-sport="basketball"] .team.home { background: #111115; }
   [data-sport="basketball"] .team.away { background: #111115; }
-  [data-sport="soccer"] .team.home { background: var(--home); }
-  [data-sport="soccer"] .team.away { background: var(--away); }
+  [data-sport="tabletennis"] .team.home { background: var(--home); }
+  [data-sport="tabletennis"] .team.away { background: var(--away); }
 
   /* Basketball — dark scoreboard panels */
   [data-sport="basketball"] .team-name { color: rgba(255,255,255,0.7); }
@@ -210,11 +210,11 @@
   [data-sport="basketball"] .point-btn.minus { display: none; }
   /* Volleyball & Soccer: hide all point buttons — tap the panel to score */
   [data-sport="volleyball"] .point-controls,
-  [data-sport="soccer"]     .point-controls { display: none; }
+  [data-sport="tabletennis"]     .point-controls { display: none; }
   [data-sport="volleyball"] .point-btn.minus,
-  [data-sport="soccer"]     .point-btn.minus { display: none; }
+  [data-sport="tabletennis"]     .point-btn.minus { display: none; }
   [data-sport="volleyball"] .team,
-  [data-sport="soccer"]     .team { cursor: pointer; }
+  [data-sport="tabletennis"]     .team { cursor: pointer; }
 
   /* Score: DSEG7-Classic font — matches reference image exactly */
   [data-sport="basketball"] .team-score {
@@ -651,8 +651,8 @@
     <button class="sport-tab" data-sport="basketball">
       <span class="ico">🏀</span> Basketball
     </button>
-    <button class="sport-tab" data-sport="soccer">
-      <span class="ico">⚽</span> Soccer
+    <button class="sport-tab" data-sport="tabletennis">
+      <span class="ico">🏓</span> Table Tennis
     </button>
   </div>
 
@@ -801,17 +801,17 @@
       clockStart: 10 * 60,
       clockDirection: 'down'
     },
-    soccer: {
-      name: 'Soccer',
-      icon: '⚽',
+    tabletennis: {
+      name: 'Table Tennis',
+      icon: '🏓',
       pointButtons: [1],
-      periodLabel: 'Half',
-      periodMax: 2,
-      autoEndSet: false,
-      hasClock: true,
-      clockStart: 0,
-      clockDirection: 'up',
-      clockMax: 45 * 60
+      periodLabel: 'Game',
+      periodMax: 5, // best of 5
+      autoEndSet: true,
+      target: 11,
+      targetFinal: 11,
+      twoPointLead: true,
+      hasClock: false
     }
   };
 
@@ -933,8 +933,9 @@
       homeDots[i].classList.toggle('won', i < sH);
       awayDots[i].classList.toggle('won', i < sA);
     }
-    $('home-sets').style.display = activeSport === 'volleyball' ? '' : 'none';
-    $('away-sets').style.display = activeSport === 'volleyball' ? '' : 'none';
+    const showDots = sportCfg().autoEndSet;
+    $('home-sets').style.display = showDots ? '' : 'none';
+    $('away-sets').style.display = showDots ? '' : 'none';
 
     // Build point buttons per sport
     rebuildPointButtons();
@@ -1055,8 +1056,8 @@
     if (team === 'home') state.home += pts; else state.away += pts;
     bumpScore(team);
 
-    if (activeSport === 'volleyball' && sportCfg().autoEndSet) {
-      checkVolleyballSetEnd();
+    if (sportCfg().autoEndSet) {
+      checkSetEnd();
     }
     render();
   }
@@ -1076,7 +1077,7 @@
     el.classList.add('bump');
   }
 
-  function checkVolleyballSetEnd() {
+  function checkSetEnd() {
     const cfg = sportCfg();
     const isFinal = state.period === cfg.periodMax;
     const target = isFinal ? cfg.targetFinal : cfg.target;
@@ -1087,7 +1088,7 @@
       const setNum = state.period;
       const winner = state.home > state.away ? state.homeName : state.awayName;
       const score = `${state.home}–${state.away}`;
-      showToast(`Set ${setNum} → ${winner} ${score}`);
+      showToast(`${cfg.periodLabel} ${setNum} → ${winner} ${score}`);
 
       const sH = setsHome(), sA = setsAway();
       // Best of 3 → first to 2 sets wins
@@ -1112,7 +1113,7 @@
       return;
     }
     pushHistory();
-    if (activeSport === 'volleyball') {
+    if (sportCfg().autoEndSet) {
       // Manual advance even without reaching score
       state.period++;
     } else {
@@ -1128,7 +1129,7 @@
     stopClock();
 
     let winner, sub;
-    if (activeSport === 'volleyball') {
+    if (sportCfg().autoEndSet) {
       const sH = setsHome(), sA = setsAway();
       winner = sH > sA ? state.homeName : sA > sH ? state.awayName : '';
       sub = `${Math.max(sH, sA)} — ${Math.min(sH, sA)}`;
@@ -1143,7 +1144,7 @@
 
     // Set summary for volleyball
     const summaryEl = $('sets-summary');
-    if (activeSport === 'volleyball' && state.setsHistory.length > 0) {
+    if (sportCfg().autoEndSet && state.setsHistory.length > 0) {
       summaryEl.style.display = 'block';
       summaryEl.innerHTML = state.setsHistory.map(([h, a], i) => {
         const setWinner = h > a ? state.homeName : state.awayName;
@@ -1280,7 +1281,7 @@
 
       if (dx < -50 && Math.abs(dy) < 60) {
         subtractPoint(team);
-      } else if ((activeSport === 'volleyball' || activeSport === 'soccer') && isTap) {
+      } else if (sportCfg().autoEndSet && isTap) {
         addPoints(team, 1);
       }
       swipeStartX = null; swipeStartY = null;
