@@ -590,6 +590,32 @@
     transform: translate(-50%, 0);
   }
 
+  /* ── Sets / periods history bar ─────────────────────── */
+  .history-bar {
+    display: none;
+    align-items: center; gap: 5px; flex-wrap: wrap;
+    padding: 5px 14px;
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--border);
+  }
+  .history-bar.visible { display: flex; }
+  .history-label {
+    font-size: 9px; font-weight: 800; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-right: 2px;
+  }
+  .history-chip {
+    padding: 2px 7px;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 11px; font-weight: 700;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .history-chip.home-won { border-color: var(--home); color: var(--home); }
+  .history-chip.away-won { border-color: var(--away); color: var(--away); }
+
   /* ── Landscape mode ─────────────────────────────────── */
   @media (orientation: landscape) {
     body { min-height: 100dvh; }
@@ -668,7 +694,13 @@
         Next
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
+      <button class="period-btn" id="btn-end-match" style="color:#FF6E55;border-color:rgba(255,110,85,0.4)">End</button>
     </div>
+  </div>
+
+  <!-- Sets / periods history bar -->
+  <div class="history-bar" id="history-bar">
+    <span class="history-label" id="history-label">Sets</span>
   </div>
 
   <!-- Teams -->
@@ -915,6 +947,26 @@
     }
   }
 
+  function renderHistory() {
+    const bar = $('history-bar');
+    const cfg = sportCfg();
+    if (state.setsHistory.length === 0) {
+      bar.classList.remove('visible');
+      return;
+    }
+    bar.classList.add('visible');
+    const label = cfg.autoEndSet ? cfg.periodLabel + 's' : 'Quarters';
+    $('history-label').textContent = label;
+    // Remove old chips but keep the label span
+    bar.querySelectorAll('.history-chip').forEach(c => c.remove());
+    state.setsHistory.forEach(([h, a]) => {
+      const chip = document.createElement('span');
+      chip.className = 'history-chip' + (h > a ? ' home-won' : a > h ? ' away-won' : '');
+      chip.textContent = `${h}–${a}`;
+      bar.appendChild(chip);
+    });
+  }
+
   // Render
   function render() {
     renderScores();
@@ -940,6 +992,7 @@
     // Build point buttons per sport
     rebuildPointButtons();
     renderClock();
+    renderHistory();
   }
 
   function rebuildPointButtons() {
@@ -1106,19 +1159,20 @@
   function nextPeriod() {
     const cfg = sportCfg();
     if (state.period >= cfg.periodMax) {
-      // For basketball/soccer: end match on Next at last period
+      // For basketball: end match on Next at last period
       if (!cfg.autoEndSet) {
+        state.setsHistory.push([state.home, state.away]);
         endMatch();
       }
       return;
     }
     pushHistory();
-    if (sportCfg().autoEndSet) {
-      // Manual advance even without reaching score
+    if (cfg.autoEndSet) {
       state.period++;
     } else {
+      // Basketball: save current period score before advancing
+      state.setsHistory.push([state.home, state.away]);
       state.period++;
-      // Reset clock for new period
       setupClockForCurrentSport();
     }
     render();
@@ -1241,6 +1295,11 @@
   $('home-minus').addEventListener('click', () => subtractPoint('home'));
   $('away-minus').addEventListener('click', () => subtractPoint('away'));
   $('btn-next-period').addEventListener('click', nextPeriod);
+  $('btn-end-match').addEventListener('click', () => {
+    if (state.matchOver) return;
+    if (!confirm('¿Finalizar el partido ahora?')) return;
+    endMatch();
+  });
   $('btn-reset').addEventListener('click', resetMatch);
   $('btn-undo').addEventListener('click', undo);
   $('btn-swap').addEventListener('click', swap);
