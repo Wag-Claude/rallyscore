@@ -172,6 +172,8 @@ export class LiveViewer {
 
   async start(videoElement) {
     this.peer = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    this._iceBuffer = [];       // candidates that arrived before remoteDescription
+    this._remoteReady = false;
 
     this.peer.ontrack = (event) => {
       if (videoElement && videoElement.srcObject !== event.streams[0]) {
@@ -201,6 +203,15 @@ export class LiveViewer {
     this.channel.on('broadcast', { event: 'broadcaster-offer' }, async ({ payload }) => {
       if (payload.viewerId !== this.viewerId) return;
       await this.peer.setRemoteDescription(payload.offer);
+      this._remoteReady = true;
+
+      // Drain any ICE candidates that arrived before the offer
+      for (const c of this._iceBuffer) {
+        try { await this.peer.addIceCandidate(c); }
+        catch (e) { console.warn('addIceCandidate (buffered):', e); }
+      }
+      this._iceBuffer = [];
+
       const answer = await this.peer.createAnswer();
       await this.peer.setLocalDescription(answer);
       await this.channel.send({
@@ -212,10 +223,14 @@ export class LiveViewer {
 
     this.channel.on('broadcast', { event: 'broadcaster-ice' }, async ({ payload }) => {
       if (payload.viewerId !== this.viewerId) return;
-      if (payload.candidate) {
-        try { await this.peer.addIceCandidate(payload.candidate); }
-        catch (e) { console.warn('addIceCandidate (viewer):', e); }
+      if (!payload.candidate) return;
+      if (!this._remoteReady) {
+        // Buffer until remoteDescription is set
+        this._iceBuffer.push(payload.candidate);
+        return;
       }
+      try { await this.peer.addIceCandidate(payload.candidate); }
+      catch (e) { console.warn('addIceCandidate (viewer):', e); }
     });
 
     await this.channel.subscribe();
