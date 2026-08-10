@@ -1317,54 +1317,6 @@
   }
 
 
-  // ── 7-segment SVG (LED scoreboard style) ──────────────────────────────
-  // Digit cell: 50 wide × 90 tall, segment thickness T=9, gap G=2, bevel B=3
-  const _S7 = (() => {
-    // Wide short digits (aspect ~0.85:1) prevent the "2×2 blocks" look
-    const DW=65, DH=80, T=12, G=1.5, B=4;
-    const aY=0, gY=(DH-T)/2, dY=DH-T;
-    const fSY=T+G, fEY=gY-G, vH=fEY-fSY;
-    const eSY=gY+T+G, eEY=dY-G;
-    const lX=0, rX=DW-T;
-
-    function h(y){
-      return `${B},${y} ${DW-B},${y} ${DW},${y+T/2} ${DW-B},${y+T} ${B},${y+T} 0,${y+T/2}`;
-    }
-    function v(x,y,ht){
-      return `${x+T/2},${y} ${x+T},${y+B} ${x+T},${y+ht-B} ${x+T/2},${y+ht} ${x},${y+ht-B} ${x},${y+B}`;
-    }
-    const segs = {
-      a:h(aY), g:h(gY), d:h(dY),
-      f:v(lX,fSY,vH), b:v(rX,fSY,vH),
-      e:v(lX,eSY,eEY-eSY), c:v(rX,eSY,eEY-eSY)
-    };
-    const on = {
-      '0':'abcdef','1':'bc','2':'abdeg','3':'abcdg',
-      '4':'bcfg',  '5':'acdfg','6':'acdefg','7':'abc',
-      '8':'abcdefg','9':'abcdfg'
-    };
-    return { segs, on, DW, DH };
-  })();
-
-  function seg7SVG(value, litColor, dimColor) {
-    const {segs, on, DW, DH} = _S7;
-    const GAP = 10;
-    const digits = String(value).padStart(2,'0').split('');
-    const W = digits.length * DW + (digits.length-1) * GAP;
-    let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${DH}">`;
-    digits.forEach((d,i) => {
-      const ox = i*(DW+GAP);
-      const active = on[d] || '';
-      svg += `<g transform="translate(${ox},0)">`;
-      for (const [s, pts] of Object.entries(segs)) {
-        svg += `<polygon points="${pts}" fill="${active.includes(s)?litColor:dimColor}"/>`;
-      }
-      svg += `</g>`;
-    });
-    return svg + `</svg>`;
-  }
-  // ──────────────────────────────────────────────────────────────────────
-
   function renderScores() {
     if (activeSport === 'basketball') {
       $('home-score').textContent = String(state.home).padStart(2, '0');
