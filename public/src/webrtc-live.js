@@ -186,9 +186,10 @@ export class LiveViewer {
     this._joinRetryTimer = null;
 
     this.peer.ontrack = (event) => {
+      console.log('[viewer] ontrack fired, streams:', event.streams.length);
       if (videoElement && videoElement.srcObject !== event.streams[0]) {
         videoElement.srcObject = event.streams[0];
-        videoElement.play().catch(() => {});
+        videoElement.play().catch((e) => console.warn('[viewer] video.play failed:', e));
       }
     };
 
@@ -203,6 +204,7 @@ export class LiveViewer {
     };
 
     this.peer.onconnectionstatechange = () => {
+      console.log('[viewer] connectionState:', this.peer.connectionState);
       this._notifyConnection(this.peer.connectionState);
     };
 
@@ -212,6 +214,7 @@ export class LiveViewer {
 
     this.channel.on('broadcast', { event: 'broadcaster-offer' }, async ({ payload }) => {
       if (payload.viewerId !== this.viewerId) return;
+      console.log('[viewer] offer received');
       this._offerReceived = true;
       clearInterval(this._joinRetryTimer); // stop retrying — offer received
 
@@ -227,6 +230,7 @@ export class LiveViewer {
 
       const answer = await this.peer.createAnswer();
       await this.peer.setLocalDescription(answer);
+      console.log('[viewer] answer sent');
       await this.channel.send({
         type: 'broadcast',
         event: 'viewer-answer',
@@ -236,6 +240,7 @@ export class LiveViewer {
 
     // If broadcaster is already live and re-announces, request a fresh offer
     this.channel.on('broadcast', { event: 'broadcaster-online' }, async () => {
+      console.log('[viewer] broadcaster-online received, offerReceived=', this._offerReceived);
       if (!this._offerReceived) {
         await this._sendJoin();
       }
@@ -256,9 +261,13 @@ export class LiveViewer {
     await this.channel.subscribe();
 
     // Send first join and retry every 5s until we receive an offer
+    console.log('[viewer] subscribed, sending join, viewerId=', this.viewerId);
     await this._sendJoin();
     this._joinRetryTimer = setInterval(async () => {
-      if (!this._offerReceived) await this._sendJoin();
+      if (!this._offerReceived) {
+        console.log('[viewer] retry join');
+        await this._sendJoin();
+      }
     }, 5000);
   }
 
