@@ -1151,13 +1151,16 @@
 
   // === Start live (real WebRTC) ===
   async function startLive() {
+    console.log('[viewer] startLive called');
     const overlay = $('start-overlay');
     overlay.style.opacity = '0.6';
 
     // 1. Find an active match
     const match = await findLiveMatch();
+    console.log('[viewer] findLiveMatch result:', match?.id ?? 'null');
     if (!match) {
       // No live match — fall back to camera demo so the page still works
+      console.log('[viewer] no match found, falling back to camera');
       return startCameraFallback();
     }
 
@@ -1175,6 +1178,7 @@
     subscribeToFxChannel(match.id);
 
     // 3. Connect WebRTC viewer to broadcaster
+    console.log('[viewer] isBackendConfigured:', isBackendConfigured);
     if (isBackendConfigured) {
       try {
         liveViewer = new LiveViewer(match.id);
