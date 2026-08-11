@@ -678,7 +678,7 @@
      FX OVERLAY (mirrors broadcaster) — fullscreen text animation
      ============================================================ */
   .fx-overlay {
-    position: fixed; inset: 0;
+    position: absolute; inset: 0;
     display: grid; place-items: center;
     pointer-events: none;
     z-index: 9000;
@@ -842,6 +842,11 @@
 
     <!-- Floating emoji layer -->
     <div class="cheer-layer" id="cheer-layer"></div>
+
+    <!-- FX overlay (must be inside video-wrap to show in fullscreen) -->
+    <div class="fx-overlay" id="fx-overlay">
+      <div class="fx-overlay-text" id="fx-overlay-text"></div>
+    </div>
 
     <!-- Tap to start overlay -->
     <div class="start-overlay" id="start-overlay">
@@ -1049,9 +1054,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<div class="fx-overlay" id="fx-overlay">
-  <div class="fx-overlay-text" id="fx-overlay-text"></div>
-</div>
 
 <script type="module">
   import {
@@ -1542,6 +1544,15 @@
       wrap.requestFullscreen().catch(() => showToast('Fullscreen not supported here'));
     } else if (document.exitFullscreen) {
       document.exitFullscreen();
+    }
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    const v = $('video-el');
+    if (document.fullscreenElement) {
+      v.style.objectFit = 'contain';
+    } else {
+      v.style.objectFit = 'cover';
     }
   });
 
