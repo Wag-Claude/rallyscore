@@ -92,7 +92,11 @@ export class LiveBroadcaster {
   }
 
   async _handleViewerJoin(viewerId) {
-    if (this.peers.has(viewerId)) return; // already connected
+    if (this.peers.has(viewerId)) {
+      const existing = this.peers.get(viewerId);
+      if (!['failed', 'closed', 'disconnected'].includes(existing.connectionState)) return;
+      this._dropViewer(viewerId); // stale peer — viewer is re-joining after failure
+    }
 
     const peer = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     this.peers.set(viewerId, peer);
