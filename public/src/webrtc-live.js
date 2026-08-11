@@ -30,6 +30,7 @@ export class LiveBroadcaster {
     this.peers = new Map(); // viewerId -> RTCPeerConnection
     this.channel = null;
     this.viewerCountListeners = [];
+    this._announceTimer = null;
   }
 
   async start(videoElement, { facingMode = 'environment' } = {}) {
@@ -76,6 +77,8 @@ export class LiveBroadcaster {
 
     // 3. Announce that we're live so any future viewers can connect
     await this._announce();
+    // Re-announce every 10s so late-joining viewers can trigger their broadcaster-online listener
+    this._announceTimer = setInterval(() => this._announce(), 10000);
 
     return this.localStream;
   }
@@ -146,6 +149,7 @@ export class LiveBroadcaster {
   }
 
   async stop() {
+    clearInterval(this._announceTimer);
     this.peers.forEach(p => p.close());
     this.peers.clear();
     if (this.channel) await supabase.removeChannel(this.channel);
@@ -172,8 +176,10 @@ export class LiveViewer {
 
   async start(videoElement) {
     this.peer = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-    this._iceBuffer = [];       // candidates that arrived before remoteDescription
+    this._iceBuffer = [];
     this._remoteReady = false;
+    this._offerReceived = false;
+    this._joinRetryTimer = null;
 
     this.peer.ontrack = (event) => {
       if (videoElement && videoElement.srcObject !== event.streams[0]) {
@@ -202,6 +208,9 @@ export class LiveViewer {
 
     this.channel.on('broadcast', { event: 'broadcaster-offer' }, async ({ payload }) => {
       if (payload.viewerId !== this.viewerId) return;
+      this._offerReceived = true;
+      clearInterval(this._joinRetryTimer); // stop retrying — offer received
+
       await this.peer.setRemoteDescription(payload.offer);
       this._remoteReady = true;
 
@@ -221,6 +230,13 @@ export class LiveViewer {
       });
     });
 
+    // If broadcaster is already live and re-announces, request a fresh offer
+    this.channel.on('broadcast', { event: 'broadcaster-online' }, async () => {
+      if (!this._offerReceived) {
+        await this._sendJoin();
+      }
+    });
+
     this.channel.on('broadcast', { event: 'broadcaster-ice' }, async ({ payload }) => {
       if (payload.viewerId !== this.viewerId) return;
       if (!payload.candidate) return;
@@ -235,7 +251,15 @@ export class LiveViewer {
 
     await this.channel.subscribe();
 
-    // Announce we want to join — broadcaster will respond with an offer
+    // Send first join and retry every 5s until we receive an offer
+    await this._sendJoin();
+    this._joinRetryTimer = setInterval(async () => {
+      if (!this._offerReceived) await this._sendJoin();
+    }, 5000);
+  }
+
+  async _sendJoin() {
+    if (!this.channel) return;
     await this.channel.send({
       type: 'broadcast',
       event: 'viewer-join',
@@ -254,6 +278,7 @@ export class LiveViewer {
   }
 
   async stop() {
+    clearInterval(this._joinRetryTimer);
     if (this.channel) {
       await this.channel.send({
         type: 'broadcast',
@@ -264,5 +289,6 @@ export class LiveViewer {
     }
     if (this.peer) this.peer.close();
     this.peer = null;
+    this.channel = null;
   }
 }
