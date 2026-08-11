@@ -133,6 +133,14 @@
     background: linear-gradient(180deg, #1A1F33, #0A0E1B);
     overflow: hidden;
   }
+  .video-wrap:fullscreen,
+  .video-wrap:-webkit-full-screen {
+    aspect-ratio: unset;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    background: #000;
+  }
   .video-wrap video,
   .video-wrap .placeholder-bg {
     position: absolute; inset: 0;
