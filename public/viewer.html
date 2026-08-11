@@ -141,6 +141,10 @@
     max-width: none;
     background: #000;
   }
+  .video-wrap:fullscreen video,
+  .video-wrap:-webkit-full-screen video {
+    object-fit: contain;
+  }
   .video-wrap video,
   .video-wrap .placeholder-bg {
     position: absolute; inset: 0;
